@@ -1,0 +1,44 @@
+[
+  {
+    "title": "Neuro-Psychiatry",
+    "subtitle": "Stability-driven neuro care",
+    "imageUrl": "Images/NP.jpg",
+    "medicines": ["SOLPRIDE 100/200", "SOLANZ-MD", "LEVASOL 500", "OXOL XR-300"],
+    "order": 1
+  },
+  {
+    "title": "Orthopedic",
+    "subtitle": "Mobility and recovery support",
+    "imageUrl": "Images/O.jpg",
+    "medicines": ["SOUL-K2", "ASTAN GEL", "MYOSOL-SP", "RABISOL L/DSR"],
+    "order": 2
+  },
+  {
+    "title": "Anti-Infective",
+    "subtitle": "Protection against critical infections",
+    "imageUrl": "Images/AI.jpg",
+    "medicines": ["MYPENAM", "MYPENAM-XT", "SISTAPIT-TZ", "SOULCLAV-625"],
+    "order": 3
+  },
+  {
+    "title": "Gynaecology",
+    "subtitle": "Women’s health and wellness focus",
+    "imageUrl": "Images/Gyn.jpg",
+    "medicines": ["SOCAL", "ULTRA-XT", "GROMOM", "GASOFER-MPS"],
+    "order": 4
+  },
+  {
+    "title": "Vitamins & Minerals",
+    "subtitle": "Daily nutrition reinforcement",
+    "imageUrl": "Images/V.jpg",
+    "medicines": ["SAIPRO", "SOLVIT", "CYPRON", "MINTOX"],
+    "order": 5
+  },
+  {
+    "title": "Pediatrics",
+    "subtitle": "Pediatric care essentials",
+    "imageUrl": "Images/Pediatrics.jpg",
+    "medicines": ["SOCAL SYRUP", "CETH DT-200", "KUFNIL SYRUP", "SOLVIT SYRUP"],
+    "order": 6
+  }
+]

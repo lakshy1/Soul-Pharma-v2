@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Soul Pharma Employee Dashboard">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#d62839">
+  <meta name="color-scheme" content="light dark">
+  <meta name="application-name" content="Soul Pharma">
+  <meta name="author" content="Soul Pharma">
+  <title>Soul Pharma | Employee Dashboard</title>
+  <link rel="icon" href="Images/SoulPharma.png" type="image/png">
+  <link rel="apple-touch-icon" href="Images/SoulPharma.png">
+  <link rel="stylesheet" href="build/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
+</head>
+<body data-page="employee-dashboard">
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="page-shell">
+    <header class="sticky top-4 z-50">
+      <nav class="glass-nav max-content">
+        <div class="employee-header">
+          <div class="flex items-center gap-3">
+            <img src="Images/Logo.png" alt="Soul Pharma logo" width="98" height="58" class="h-12 w-auto">
+            <div class="employee-brand">
+              <span class="focus-pill">Employee Dashboard</span>
+              <p class="employee-subtitle">Daily field ops and visit tracking.</p>
+            </div>
+          </div>
+          <div class="employee-actions">
+            <span class="focus-pill lg:inline-flex hidden" data-employee-status>Signed in</span>
+            <button type="button" class="theme-btn" data-theme-toggle aria-label="Toggle theme">
+              <span data-theme-icon></span>
+            </button>
+            <button type="button" class="btn-secondary !px-4 !py-2 hidden lg:inline-flex" data-employee-logout>Logout</button>
+            <button type="button" class="theme-btn md:hidden" data-emp-menu-toggle aria-expanded="false" aria-controls="emp-menu">&#9776;</button>
+          </div>
+        </div>
+        <div class="employee-nav mt-4 hidden lg:flex">
+          <button type="button" class="employee-tab is-active" data-emp-nav="overview">Overview</button>
+          <button type="button" class="employee-tab" data-emp-nav="doctors">Doctors</button>
+          <button type="button" class="employee-tab" data-emp-nav="activity">Daily Activity</button>
+          <button type="button" class="employee-tab" data-emp-nav="calendar">Calendar</button>
+          <!-- desktop logout tab, in addition to the action button at top -->
+          <button type="button" class="employee-tab" data-employee-logout>Logout</button>
+        </div>
+        <div id="emp-menu" class="hidden mt-4 lg:hidden" data-emp-mobile-menu>
+          <div class="mobile-status">
+            <span class="focus-pill" data-employee-status>Signed in</span>
+          </div>
+          <div class="mobile-nav">
+            <button type="button" class="employee-tab is-active w-full text-left" data-emp-nav="overview">Overview</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="doctors">Doctors</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="activity">Daily Activity</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="calendar">Calendar</button>
+          </div>
+          <div class="mobile-nav-actions">
+            <button type="button" class="btn-secondary !px-4 !py-2 w-full" data-employee-logout>Logout</button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="max-content mt-10 space-y-8">
+      <section class="hero-panel">
+        <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500">Employee Access</p>
+        <h1 class="section-title mt-2" data-emp-greeting>Welcome back</h1>
+        <p class="muted mt-3 text-sm">Track doctors, log visits, and keep your field activity organized.</p>
+        <p class="mt-3 text-sm text-rose-500 hidden" data-emp-feedback></p>
+      </section>
+
+      <section class="space-y-8" data-emp-section="overview">
+        <section class="grid gap-4 md:grid-cols-3">
+          <article class="glass-card text-center">
+            <p class="text-3xl font-bold" data-stat-doctors>0</p>
+            <p class="muted mt-2 text-sm">Doctors Assigned</p>
+          </article>
+          <article class="glass-card text-center">
+            <p class="text-3xl font-bold" data-stat-visits>0</p>
+            <p class="muted mt-2 text-sm">Visits This Month</p>
+          </article>
+          <article class="glass-card text-center">
+            <p class="text-3xl font-bold" data-stat-followups>0</p>
+            <p class="muted mt-2 text-sm">Upcoming Follow-ups</p>
+          </article>
+        </section>
+
+        <section class="grid gap-4 lg:grid-cols-2">
+          <div class="glass-card">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold">Profile Snapshot</h2>
+              <span class="focus-pill" data-employee-role>Employee</span>
+            </div>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div class="summary-card">
+                <p class="summary-label">Name</p>
+                <p class="summary-value" data-employee-name>—</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Email</p>
+                <p class="summary-value" data-employee-email>—</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Employee ID</p>
+                <p class="summary-value" data-employee-id>—</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Territory</p>
+                <p class="summary-value" data-employee-territory>—</p>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card">
+            <h2 class="text-xl font-semibold">Recent Activity</h2>
+            <div class="mt-4 grid gap-3" data-recent-activity></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="doctors">
+        <section class="glass-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-semibold">Your Doctors</h2>
+              <p class="muted mt-1 text-sm">All assigned doctors are listed below.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="search" class="form-input w-full sm:w-64" placeholder="Search doctor" data-doctor-search>
+            </div>
+          </div>
+          <div class="mt-4 grid gap-4" data-doctors-list></div>
+        </section>
+
+        <section class="glass-card">
+          <h2 class="text-xl font-semibold">Add Doctor</h2>
+          <p class="muted mt-1 text-sm">Enter doctor details to add to your list.</p>
+          <form class="mt-5 grid gap-4" data-doctor-form>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="grid gap-2">
+                <label class="form-label">Doctor Name</label>
+                <input name="name" class="form-input" placeholder="Dr. Name" required>
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Speciality</label>
+                <input name="speciality" class="form-input" placeholder="Cardiology">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Phone</label>
+                <input name="phone" class="form-input" placeholder="+91 9XXXXXXXXX" required>
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Email</label>
+                <input name="email" class="form-input" placeholder="doctor@email.com">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Clinic Name</label>
+                <input name="clinicName" class="form-input" placeholder="Clinic / Hospital">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Address</label>
+                <input name="address" class="form-input" placeholder="Street, Area">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">City</label>
+                <input name="city" class="form-input" placeholder="City">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">State</label>
+                <input name="state" class="form-input" placeholder="State">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Pin Code</label>
+                <input name="pincode" class="form-input" placeholder="Postal code">
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label class="form-label">Notes</label>
+              <textarea name="notes" class="form-textarea" placeholder="Comments or reminders"></textarea>
+            </div>
+            <button type="submit" class="btn-brand w-full md:w-fit">Add Doctor</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="activity">
+        <section class="glass-card">
+          <h2 class="text-xl font-semibold">Recent Visits</h2>
+          <p class="muted mt-1 text-sm">Latest field visits logged by you.</p>
+          <div class="mt-4 grid gap-4" data-activity-list></div>
+        </section>
+
+        <section class="glass-card">
+          <h2 class="text-xl font-semibold">Log Daily Visit</h2>
+          <p class="muted mt-1 text-sm">Search a doctor to auto-fill details and upload visit proof.</p>
+          <form class="mt-5 grid gap-4" data-activity-form>
+            <div class="grid gap-2">
+              <label class="form-label">Search Doctor</label>
+              <input type="search" class="form-input" placeholder="Type doctor name" data-activity-doctor-search>
+              <div class="dropdown-list hidden" data-activity-doctor-results></div>
+              <input type="hidden" name="doctorId">
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="grid gap-2">
+                <label class="form-label">Doctor Name</label>
+                <input name="doctorName" class="form-input" placeholder="Dr. Name">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Speciality</label>
+                <input name="speciality" class="form-input" placeholder="Speciality">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Phone</label>
+                <input name="phone" class="form-input" placeholder="+91 9XXXXXXXXX">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Address</label>
+                <input name="address" class="form-input" placeholder="Address">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Visited Time</label>
+                <input name="visitedAt" type="datetime-local" class="form-input" data-activity-time>
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Next Follow-up</label>
+                <input name="followUpDate" type="date" class="form-input">
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label class="form-label">Comments</label>
+              <textarea name="notes" class="form-textarea" placeholder="Visit notes or observations"></textarea>
+            </div>
+            <div class="upload-card">
+              <div class="upload-info">
+                <div>
+                  <p class="upload-title">Upload Visit Photo</p>
+                  <p class="upload-subtitle muted text-sm">JPG/PNG up to 8 MB.</p>
+                </div>
+                <span class="focus-pill" data-upload-status>Idle</span>
+              </div>
+              <input type="file" accept="image/*" class="form-input" data-activity-file>
+              <div class="upload-progress hidden" data-upload-progress>
+                <div class="upload-bar">
+                  <span data-upload-bar></span>
+                </div>
+                <p class="muted text-xs" data-upload-text>Uploading...</p>
+              </div>
+              <img alt="Uploaded proof" class="upload-preview hidden" data-upload-preview>
+              <input type="hidden" name="photoUrl">
+              <input type="hidden" name="photoPublicId">
+            </div>
+            <button type="submit" class="btn-brand w-full md:w-fit">Save Visit</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="calendar">
+        <section class="glass-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-semibold">Monthly Calendar</h2>
+              <p class="muted mt-1 text-sm">Tap a date to see visits and timings.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn-secondary !px-4 !py-2" data-cal-prev>Prev</button>
+              <span class="focus-pill" data-cal-label>Month</span>
+              <button type="button" class="btn-secondary !px-4 !py-2" data-cal-next>Next</button>
+            </div>
+          </div>
+          <div class="calendar-shell mt-6">
+            <svg class="calendar-svg" data-calendar></svg>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="calendar-popup hidden" data-calendar-popup>
+    <div class="calendar-popup-card glass-card">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500" data-popup-date>Day</p>
+          <h3 class="text-xl font-semibold">Visited Doctors</h3>
+        </div>
+        <button type="button" class="theme-btn" data-popup-close aria-label="Close popup">&times;</button>
+      </div>
+      <div class="mt-4 grid gap-3" data-popup-list></div>
+    </div>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="assets/js/site.js"></script>
+  <script src="assets/js/employee-dashboard.js"></script>
+</body>
+</html>

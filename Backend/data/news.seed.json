@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Hiring Alert",
+    "summary": "Join Soul Pharma in multiple locations and build a meaningful career in healthcare and pharma operations.",
+    "imageUrl": "Images/Hiring.jpg",
+    "category": "Careers",
+    "publishedAt": "2024-07-01",
+    "isFeatured": true
+  },
+  {
+    "title": "Neuro-Psychiatry Conference",
+    "summary": "We engaged with market trends and new regulatory insights to keep our portfolio future-ready.",
+    "imageUrl": "Images/Medical-conference-1.jpg",
+    "category": "Conference",
+    "publishedAt": "2024-04-01"
+  },
+  {
+    "title": "Sales Review Meeting",
+    "summary": "Cross-functional strategy and performance sessions to improve execution and market expansion quality.",
+    "imageUrl": "Images/Sales-meet.jpg",
+    "category": "Business",
+    "publishedAt": "2024-03-01"
+  },
+  {
+    "title": "Gynaecology Conference",
+    "summary": "Women’s health insights and product relevance discussions to better support treatment quality.",
+    "imageUrl": "Images/Medical-conference-2.jpg",
+    "category": "Conference",
+    "publishedAt": "2023-12-01"
+  },
+  {
+    "title": "20th Anniversary",
+    "summary": "Two decades of commitment to improving health outcomes through dependable research, manufacturing quality, and responsible patient care.",
+    "imageUrl": "Images/Anniversary.jpg",
+    "category": "Milestone",
+    "publishedAt": "2023-10-01"
+  }
+]

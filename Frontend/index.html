@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Soul Pharma develops and markets quality medicines across key therapeutic areas, with a growing presence across India.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#d62839">
+  <meta name="color-scheme" content="light dark">
+  <meta name="application-name" content="Soul Pharma">
+  <meta name="author" content="Soul Pharma">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Soul Pharma">
+  <meta property="og:title" content="Soul Pharma | Home">
+  <meta property="og:description" content="Science-led pharma solutions for unmet medical needs across key therapeutic areas.">
+  <meta property="og:image" content="Images/SoulPharma.png">
+  <meta property="og:image:alt" content="Soul Pharma logo">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Soul Pharma | Home">
+  <meta name="twitter:description" content="Science-led pharma solutions for unmet medical needs across key therapeutic areas.">
+  <meta name="twitter:image" content="Images/SoulPharma.png">
+  <meta name="twitter:image:alt" content="Soul Pharma logo">
+  <link rel="shortcut icon" href="Images/SoulPharma.png" type="image/x-icon">
+  <link rel="apple-touch-icon" href="Images/SoulPharma.png">
+  <title>Soul Pharma | Home</title>
+  <link rel="stylesheet" href="build/main.css">
+  <link rel="stylesheet" href="assets/css/chatbot.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <style>
+    :root {
+      --loader-rose: #fb7185;
+      --loader-sky: #38bdf8;
+      --loader-green: #22c55e;
+      --loader-amber: #f59e0b;
+      --loader-ink: #0f172a;
+      --loader-mist: rgba(248, 250, 252, 0.88);
+    }
+
+    [data-theme="dark"] {
+      --loader-ink: #e2e8f0;
+      --loader-mist: rgba(15, 23, 42, 0.92);
+    }
+
+    .loader-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 55%),
+        radial-gradient(circle at 15% 85%, rgba(251, 113, 133, 0.12), transparent 52%),
+        radial-gradient(circle at 85% 75%, rgba(34, 197, 94, 0.1), transparent 55%),
+        var(--loader-mist);
+      backdrop-filter: blur(16px);
+      transition: opacity 0.55s ease, visibility 0.55s ease;
+    }
+
+    .loader-overlay.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loader-card {
+      position: relative;
+      display: grid;
+      gap: 0.8rem;
+      justify-items: center;
+      padding: 1.1rem 1.6rem;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+      isolation: isolate;
+    }
+
+    [data-theme="dark"] .loader-card {
+      background: rgba(15, 23, 42, 0.55);
+      border-color: rgba(148, 163, 184, 0.22);
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.55);
+    }
+
+    .loader-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .pill-mini {
+      position: relative;
+      width: 26px;
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.8), rgba(251, 113, 133, 0.8));
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+      overflow: hidden;
+    }
+
+    .pill-mini::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.35), transparent 50%);
+      animation: pillShine 1.8s ease-in-out infinite;
+    }
+
+    .pill-mini::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.65);
+      transform: translateX(-50%);
+      opacity: 0.75;
+    }
+
+    .soul-letters {
+      display: inline-flex;
+      gap: 0.2rem;
+      font-family: "Sora", sans-serif;
+      font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+      letter-spacing: 0.18rem;
+      font-weight: 600;
+      color: var(--loader-ink);
+      text-transform: uppercase;
+    }
+
+    .soul-letters span {
+      position: relative;
+      animation: letterFloat 2.6s ease-in-out infinite;
+      animation-delay: calc(var(--i) * 0.1s);
+    }
+
+    .soul-letters .pharma-tag {
+      font-size: 0.85em;
+      letter-spacing: 0.06rem;
+      font-weight: 500;
+      opacity: 0.7;
+      text-transform: none;
+    }
+
+    .loader-status {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(71, 85, 105, 0.6);
+    }
+
+    [data-theme="dark"] .loader-status {
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .loader-bar {
+      width: min(180px, 60vw);
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.18);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loader-bar::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 35%;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0), rgba(56, 189, 248, 0.65), rgba(251, 113, 133, 0.65), rgba(56, 189, 248, 0));
+      animation: barSweep 2.6s ease-in-out infinite;
+    }
+
+    @keyframes haloSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes dotSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes letterFloat {
+      0%, 100% { transform: translateY(0); text-shadow: 0 0 8px rgba(56, 189, 248, 0.16); }
+      50% { transform: translateY(-4px); text-shadow: 0 0 10px rgba(251, 113, 133, 0.22); }
+    }
+
+    @keyframes barSweep {
+      0% { transform: translateX(-40%); }
+      50% { transform: translateX(90%); }
+      100% { transform: translateX(140%); }
+    }
+
+    @keyframes pillShine {
+      0% { transform: translateX(-60%); opacity: 0.1; }
+      50% { opacity: 0.6; }
+      100% { transform: translateX(60%); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loader-overlay,
+      .pill-mini::before,
+      .soul-letters span,
+      .loader-bar::after {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body data-page="home">
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="loader-overlay" data-loader role="status" aria-live="polite" aria-label="Loading Soul Pharma">
+    <div class="loader-card">
+      <div class="loader-mini" aria-hidden="true">
+        <div class="pill-mini"></div>
+        <div class="soul-letters">
+          <span style="--i: 1;">S</span>
+          <span style="--i: 2;">O</span>
+          <span style="--i: 3;">U</span>
+          <span style="--i: 4;">L</span>
+          <span class="pharma-tag">Pharma</span>
+        </div>
+      </div>
+      <div class="loader-status">Loading</div>
+      <div class="loader-bar" role="progressbar" aria-valuetext="Loading"></div>
+    </div>
+  </div>
+  <div class="page-shell">
+    <header class="sticky top-4 z-50">
+      <nav class="glass-nav max-content">
+        <div class="flex items-center justify-between gap-3">
+          <a href="index.html" class="flex items-center gap-3">
+            <img src="Images/Logo.png" alt="Soul Pharma logo" width="98" height="58" class="h-12 w-auto">
+          </a>
+
+          <button type="button" class="theme-btn md:hidden" data-menu-toggle aria-expanded="false" aria-controls="mobile-menu">&#9776;</button>
+
+          <div class="hidden items-center gap-2 md:flex">
+            <a href="index.html" data-nav="home" class="nav-link">Home</a>
+            <a href="About.html" data-nav="about" class="nav-link">About</a>
+            <a href="Business.html" data-nav="business" class="nav-link">Business</a>
+            <a href="Careers.html" data-nav="careers" class="nav-link">Careers</a>
+            <a href="Newsroom.html" data-nav="newsroom" class="nav-link">Newsroom</a>
+            <a href="Contact.html" data-nav="contact" class="nav-link">Contact</a>
+          </div>
+
+          <div class="hidden items-center gap-2 md:flex">
+            <a href="Auth.html" class="theme-btn" aria-label="Account"><i class="fa fa-user"></i></a>
+            <button type="button" class="theme-btn" data-theme-toggle aria-label="Toggle theme"><span data-theme-icon></span></button>
+          </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden pt-4 md:hidden" data-mobile-menu>
+          <div class="grid gap-1">
+            <a href="index.html" data-nav="home" class="nav-link">Home</a>
+            <a href="About.html" data-nav="about" class="nav-link">About</a>
+            <a href="Business.html" data-nav="business" class="nav-link">Business</a>
+            <a href="Careers.html" data-nav="careers" class="nav-link">Careers</a>
+            <a href="Newsroom.html" data-nav="newsroom" class="nav-link">Newsroom</a>
+            <a href="Contact.html" data-nav="contact" class="nav-link">Contact</a>
+            <div class="mt-2 flex items-center gap-2">
+              <a href="Auth.html" class="theme-btn w-10" aria-label="Account"><i class="fa fa-user"></i></a>
+              <button type="button" class="theme-btn w-10" data-theme-toggle aria-label="Toggle theme"><span data-theme-icon></span></button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="max-content mt-10 space-y-12">
+      <section class="hero-panel">
+        <div class="grid items-center gap-8 md:grid-cols-2">
+          <img src="Images/1st Section Left.png" alt="Soul Pharma" class="h-full w-full rounded-2xl object-cover transition duration-500 hover:scale-[1.02]">
+          <div>
+            <p class="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-rose-500">Science-Led Healthcare</p>
+            <h1 class="section-title">Soul Pharma, where <span class="soul-accent s">S</span>cience meets <span class="soul-accent o">O</span>ptimal solutions for <span class="soul-accent u">U</span>nmet medical needs, improving <span class="soul-accent l">L</span>ives.</h1>
+            <p class="muted mt-5 text-base md:text-lg">A Nagpur-based pharmaceutical organization manufacturing oral doses, injectables, and ointments under WHO GMP standards, serving clinicians and patients with reliable formulations.</p>
+            <div class="mt-7 flex flex-wrap gap-3">
+              <a href="Business.html" class="btn-brand">Explore Products</a>
+              <a href="Contact.html" class="btn-secondary">Talk to Team</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="glass-card">
+        <h2 class="section-title text-center">Focus Areas</h2>
+        <p class="muted mx-auto mt-3 max-w-3xl text-center">Established presence in key therapeutic areas with differentiated product lines.</p>
+        <div class="focus-carousel mt-8" aria-label="Therapeutic focus area carousel">
+          <div class="focus-track">
+            <article class="focus-card">
+              <img src="Images/NP.jpg" alt="Neuro Psychiatry">
+              <h3>Neuro-Psychiatry</h3>
+            </article>
+            <article class="focus-card">
+              <img src="Images/AI.jpg" alt="Anti Infective">
+              <h3>Anti-Infective</h3>
+            </article>
+            <article class="focus-card">
+              <img src="Images/Gyn.jpg" alt="Gynecology">
+              <h3>Gynecology</h3>
+            </article>
+            <article class="focus-card">
+              <img src="Images/OR.jpg" alt="Orthopedics">
+              <h3>Orthopedics</h3>
+            </article>
+            <article class="focus-card">
+              <img src="Images/V.jpg" alt="Vitamins Minerals and Nutrients">
+              <h3>Vitamins, Minerals and Nutrients</h3>
+            </article>
+
+            <article class="focus-card" aria-hidden="true">
+              <img src="Images/NP.jpg" alt="">
+              <h3>Neuro-Psychiatry</h3>
+            </article>
+            <article class="focus-card" aria-hidden="true">
+              <img src="Images/AI.jpg" alt="">
+              <h3>Anti-Infective</h3>
+            </article>
+            <article class="focus-card" aria-hidden="true">
+              <img src="Images/Gyn.jpg" alt="">
+              <h3>Gynecology</h3>
+            </article>
+            <article class="focus-card" aria-hidden="true">
+              <img src="Images/OR.jpg" alt="">
+              <h3>Orthopedics</h3>
+            </article>
+            <article class="focus-card" aria-hidden="true">
+              <img src="Images/V.jpg" alt="">
+              <h3>Vitamins, Minerals and Nutrients</h3>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid gap-6 md:grid-cols-3">
+        <article class="glass-card text-center">
+          <h3 class="text-3xl font-bold">20+</h3>
+          <p class="muted mt-2">Cities Presence</p>
+        </article>
+        <article class="glass-card text-center">
+          <h3 class="text-3xl font-bold">2003</h3>
+          <p class="muted mt-2">Founded</p>
+        </article>
+        <article class="glass-card text-center">
+          <h3 class="text-3xl font-bold">WHO GMP</h3>
+          <p class="muted mt-2">Manufacturing Standards</p>
+        </article>
+      </section>
+
+      <section class="glass-card">
+        <h2 class="section-title text-center">Our Presence</h2>
+        <p class="muted mt-3 text-center">Soul Pharma is present in over 20+ cities and continuously expanding through trusted distribution channels in India.</p>
+        <div class="presence-map-wrap mt-7 presence-infographic" data-presence-map>
+          <div class="presence-state-grid">
+            <article class="presence-state-card" style="--state-accent: #fb7185;">
+              <div class="presence-state-header">
+                <div>
+                  <p class="presence-state-tag">Maharashtra</p>
+                  <h3>Regional Hub</h3>
+                </div>
+                <span>10 cities</span>
+              </div>
+              <div class="presence-city-pill-grid">
+                <span>Nagpur</span><span>Wardha</span><span>Chandrapur</span><span>Brahmapuri</span><span>Akola</span>
+                <span>Gadchiroli</span><span>Gondia</span><span>Yavatmal</span><span>Washim</span><span>Buldhana</span>
+              </div>
+            </article>
+
+            <article class="presence-state-card" style="--state-accent: #38bdf8;">
+              <div class="presence-state-header">
+                <div>
+                  <p class="presence-state-tag">Madhya Pradesh</p>
+                  <h3>Growth Corridor</h3>
+                </div>
+                <span>8 cities</span>
+              </div>
+              <div class="presence-city-pill-grid">
+                <span>Gwalior</span><span>Bhopal</span><span>Indore</span><span>Indore</span><span>Satna</span><span>Rewa</span><span>Katni</span><span>Guna</span><span>Sagar</span>
+              </div>
+            </article>
+
+            <article class="presence-state-card" style="--state-accent: #22c55e;">
+              <div class="presence-state-header">
+                <div>
+                  <p class="presence-state-tag">Chhattisgarh</p>
+                  <h3>Strategic Reach</h3>
+                </div>
+                <span>2 cities</span>
+              </div>
+              <div class="presence-city-pill-grid">
+                <span>Raipur</span><span>Bilaspur</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="News" class="space-y-6">
+        <h2 class="section-title text-center">Newsroom</h2>
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <article class="glass-card overflow-hidden !p-0">
+            <img src="Images/Hiring.jpg" alt="Hiring Alert" class="h-52 w-full object-cover">
+            <div class="p-5">
+              <h3 class="text-xl font-semibold">Hiring Alert</h3>
+              <p class="muted mt-2 text-sm">Join Soul Pharma across multiple locations. Explore current opportunities and become part of a growth-focused healthcare organization.</p>
+              <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">Updated July 2024</p>
+            </div>
+          </article>
+
+          <article class="glass-card overflow-hidden !p-0" id="Medical-Conferences">
+            <img src="Images/Medical-conference-1.jpg" alt="Neuro-Psychiatry Conference" class="h-52 w-full object-cover">
+            <div class="p-5">
+              <h3 class="text-xl font-semibold">Neuro-Psychiatry Conference</h3>
+              <p class="muted mt-2 text-sm">We actively track market trends and regulatory insights to keep our offerings clinically relevant and innovation-led.</p>
+              <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">Updated April 2024</p>
+            </div>
+          </article>
+
+          <article class="glass-card overflow-hidden !p-0">
+            <img src="Images/Sales-meet.jpg" alt="Sales Review Meeting" class="h-52 w-full object-cover">
+            <div class="p-5">
+              <h3 class="text-xl font-semibold">Sales Review Meeting</h3>
+              <p class="muted mt-2 text-sm">Strategy, training, and performance insights to strengthen field execution and future growth preparedness.</p>
+              <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">Updated March 2024</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer-wrap">
+      <div class="grid gap-8 lg:grid-cols-4">
+        <div>
+          <h3 class="text-2xl font-bold">Soul Pharma</h3>
+          <p class="muted mt-3 text-sm">Optimal solutions for unmet medical needs with a focus on quality, affordability, and patient well-being.</p>
+          <div class="mt-4 flex items-center gap-2">
+            <a href="https://www.linkedin.com/company/soul-pharma-ngp/" aria-label="LinkedIn" class="social-icon"><i class="fa fa-linkedin"></i></a>
+            <a href="https://www.instagram.com/soul.pharma?igsh=MXVqcHZpMnFuc2MwcQ==" aria-label="Instagram" class="social-icon"><i class="fa fa-instagram"></i></a>
+            <a href="https://x.com/?lang=en" aria-label="X" class="social-icon"><i class="fa fa-twitter"></i></a>
+            <a href="https://www.facebook.com/" aria-label="Facebook" class="social-icon"><i class="fa fa-facebook"></i></a>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-lg font-semibold">Company</h4>
+          <div class="mt-3 grid gap-2 text-sm muted">
+            <a href="About.html#Overview" class="hover:text-inherit">About Overview</a>
+            <a href="Business.html#Top" class="hover:text-inherit">Business Focus</a>
+            <a href="Newsroom.html" class="hover:text-inherit">Latest News</a>
+            <a href="Careers.html" class="hover:text-inherit">Careers</a>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-lg font-semibold">Contact</h4>
+          <div class="mt-3 grid gap-2 text-sm muted">
+            <p><i class="fa fa-envelope mr-2"></i>Soulpharmangp@gmail.com</p>
+            <p><i class="fa fa-phone mr-2"></i>+91 9595260505</p>
+            <p><i class="fa fa-map-marker mr-2"></i>Opposite Acharaj Tower, Chhaoni, Nagpur 440030</p>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-lg font-semibold">Stay Updated</h4>
+          <p class="muted mt-3 text-sm">Get updates on announcements and opportunities.</p>
+          <div class="mt-3 flex gap-2">
+            <input type="email" placeholder="Your email" class="form-input">
+            <button type="button" class="btn-brand !px-4 !py-2">Join</button>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8 border-t border-white/20 pt-4 text-center text-xs muted">Copyright 2026, All Rights Reserved</div>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+  <script src="assets/js/site.js"></script>
+  <script src="assets/js/chatbot.js"></script>
+  <script>
+    (() => {
+      const loader = document.querySelector("[data-loader]");
+      if (!loader) {
+        return;
+      }
+      const finish = () => {
+        loader.classList.add("is-hidden");
+        window.setTimeout(() => loader.remove(), 700);
+      };
+      window.addEventListener("load", () => window.setTimeout(finish, 250));
+    })();
+  </script>
+</body>
+</html>
+
+

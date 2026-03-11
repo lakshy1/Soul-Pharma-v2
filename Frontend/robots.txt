@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /Auth.html
+Disallow: /admin-1903
+Disallow: /admin-1903.html
+
+Sitemap: https://soulpharma.co.in/sitemap.xml

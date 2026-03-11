@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 950" fill="none">
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(238 238) rotate(47) scale(420 380)">
+      <stop stop-color="#fb7185" stop-opacity=".15"/>
+      <stop offset="1" stop-color="#fb7185" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(704 664) rotate(130) scale(380 340)">
+      <stop stop-color="#38bdf8" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="grid" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ffffff" stop-opacity=".1"/>
+      <stop offset="1" stop-color="#94a3b8" stop-opacity=".06"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="950" fill="url(#g1)"/>
+  <rect width="900" height="950" fill="url(#g2)"/>
+  <g stroke="url(#grid)" stroke-width=".8" opacity=".28">
+    <path d="M0 180H900"/>
+    <path d="M0 320H900"/>
+    <path d="M0 460H900"/>
+    <path d="M0 600H900"/>
+    <path d="M0 740H900"/>
+    <path d="M140 0V950"/>
+    <path d="M300 0V950"/>
+    <path d="M460 0V950"/>
+    <path d="M620 0V950"/>
+    <path d="M780 0V950"/>
+  </g>
+</svg>

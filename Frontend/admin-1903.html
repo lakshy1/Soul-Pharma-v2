@@ -1,0 +1,263 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Soul Pharma Admin Portal">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#d62839">
+  <meta name="color-scheme" content="light dark">
+  <meta name="application-name" content="Soul Pharma">
+  <meta name="author" content="Soul Pharma">
+  <title>Soul Pharma | Admin Portal</title>
+  <link rel="icon" href="Images/SoulPharma.png" type="image/png">
+  <link rel="apple-touch-icon" href="Images/SoulPharma.png">
+  <link rel="stylesheet" href="build/main.css">
+  <link rel="stylesheet" href="assets/css/chatbot.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
+</head>
+<body data-page="admin" data-admin-route="1903">
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="page-shell">
+    <header class="sticky top-4 z-50">
+      <nav class="glass-nav max-content admin-shell">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <img src="Images/Logo.png" alt="Soul Pharma logo" width="98" height="58" class="h-12 w-auto">
+            <div class="admin-title">
+              <span class="focus-pill">Admin Portal</span>
+              <p class="admin-subtitle">Control center for employees, doctors, and activity.</p>
+            </div>
+          </div>
+          <button type="button" class="theme-btn md:hidden" data-menu-toggle aria-expanded="false" aria-controls="admin-menu">&#9776;</button>
+          <div class="admin-status hidden md:flex">
+            <span class="focus-pill" data-admin-status>Signed out</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" class="theme-btn" data-theme-toggle aria-label="Toggle theme"><span data-theme-icon></span></button>
+            <button type="button" class="btn-secondary !px-4 !py-2 hidden" data-admin-logout>Logout</button>
+          </div>
+        </div>
+        <div class="admin-nav hidden items-center gap-2 md:flex">
+          <button type="button" class="admin-tab is-active" data-admin-nav="overview">Overview</button>
+          <button type="button" class="admin-tab" data-admin-nav="employees">Employees <span class="admin-badge" data-badge="employees">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="doctors">Doctors <span class="admin-badge" data-badge="doctors">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="activities">Daily Activity <span class="admin-badge" data-badge="activities">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="newsroom">Newsroom <span class="admin-badge" data-badge="news">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="focus">Business Focus <span class="admin-badge" data-badge="focus">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="forms">Form Responses <span class="admin-badge" data-badge="forms">0</span></button>
+        </div>
+        <div id="admin-menu" class="hidden pt-4 md:hidden" data-mobile-menu>
+          <div class="grid gap-2">
+            <button type="button" class="admin-tab w-full text-left is-active" data-admin-nav="overview">Overview</button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="employees">Employees <span class="admin-badge" data-badge="employees">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="doctors">Doctors <span class="admin-badge" data-badge="doctors">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="activities">Daily Activity <span class="admin-badge" data-badge="activities">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="newsroom">Newsroom <span class="admin-badge" data-badge="news">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="focus">Business Focus <span class="admin-badge" data-badge="focus">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="forms">Form Responses <span class="admin-badge" data-badge="forms">0</span></button>
+            <button type="button" class="btn-secondary !px-4 !py-2 hidden" data-admin-logout>Logout</button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="max-content mt-10 space-y-8">
+      <section class="hero-panel">
+        <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500">Secret Access</p>
+        <h1 class="section-title mt-2">Soul Pharma Admin Console</h1>
+        <p class="muted mt-3 text-sm">Manage employees, newsroom updates, and business focus areas in one place.</p>
+        <p class="mt-3 text-sm" data-admin-feedback></p>
+      </section>
+
+      <section class="glass-card" data-admin-login-section>
+        <h2 class="text-2xl font-bold">Admin Login</h2>
+        <p class="muted mt-2 text-sm">Enter your admin credentials to continue.</p>
+        <form class="mt-5 grid gap-4" data-admin-login>
+          <div class="grid gap-2">
+            <label class="form-label" for="admin-email">Email</label>
+            <input id="admin-email" name="email" type="email" required class="form-input" placeholder="admin@soulpharma.com">
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label" for="admin-password">Password</label>
+            <input id="admin-password" name="password" type="password" required class="form-input" placeholder="Enter password">
+          </div>
+          <button type="submit" class="btn-brand">Sign In</button>
+        </form>
+      </section>
+
+      <section class="space-y-8 hidden" data-admin-dashboard>
+        <section class="glass-card" data-admin-section="overview">
+          <h2 class="text-2xl font-bold">Overview</h2>
+          <div class="mt-6 grid gap-4 md:grid-cols-4">
+            <div class="rounded-xl border border-white/30 p-4 text-center">
+              <p class="text-3xl font-bold" data-summary-employees>0</p>
+              <p class="muted mt-1 text-sm">Employees</p>
+            </div>
+            <div class="rounded-xl border border-white/30 p-4 text-center">
+              <p class="text-3xl font-bold" data-summary-news>0</p>
+              <p class="muted mt-1 text-sm">News Updates</p>
+            </div>
+            <div class="rounded-xl border border-white/30 p-4 text-center">
+              <p class="text-3xl font-bold" data-summary-focus>0</p>
+              <p class="muted mt-1 text-sm">Focus Areas</p>
+            </div>
+            <div class="rounded-xl border border-white/30 p-4 text-center">
+              <p class="text-3xl font-bold" data-summary-forms>0</p>
+              <p class="muted mt-1 text-sm">Form Responses</p>
+            </div>
+          </div>
+          <div class="mt-6 grid gap-4 lg:grid-cols-2">
+            <div class="chart-card">
+              <div class="chart-title">Employees by Status</div>
+              <svg class="chart-canvas" data-chart="employees"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">News by Category</div>
+              <svg class="chart-canvas" data-chart="news"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Focus Areas Count</div>
+              <svg class="chart-canvas" data-chart="focus"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Form Topics</div>
+              <svg class="chart-canvas" data-chart="forms"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Form Responses Timeline</div>
+              <svg class="chart-canvas" data-chart="forms-timeline"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Employees by Department</div>
+              <svg class="chart-canvas" data-chart="employees-dept"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">3D Activity Node</div>
+              <canvas class="chart-3d" data-chart-3d></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass-card" data-admin-section="employees">
+          <h2 class="text-2xl font-bold">Employees</h2>
+          <p class="muted mt-2 text-sm">Create, update, activate, or remove employee profiles.</p>
+          <div class="mt-4 grid gap-3" data-employees-list></div>
+          <form class="mt-6 grid gap-3" data-employee-form>
+            <div class="hidden rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" data-employee-edit-indicator>
+              <p class="text-sm font-semibold text-amber-600">Editing: <span data-edit-employee-name></span></p>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+              <input name="name" type="text" placeholder="Full name" required class="form-input">
+              <input name="email" type="email" placeholder="Email" required class="form-input">
+              <input name="password" type="password" placeholder="Temp password (required for new, optional for edit)" class="form-input">
+              <input name="employeeId" type="text" placeholder="Employee ID" class="form-input">
+              <input name="joiningDate" type="date" required class="form-input">
+              <input name="currentSalary" type="number" placeholder="Current salary" required class="form-input">
+              <input name="territoryName" type="text" placeholder="Territory" required class="form-input">
+              <input name="designation" type="text" placeholder="Designation" required class="form-input">
+              <input name="department" type="text" placeholder="Department" class="form-input">
+              <input name="managerName" type="text" placeholder="Manager name" class="form-input">
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" class="btn-brand" data-employee-submit>Add Employee</button>
+              <button type="button" class="btn-secondary hidden" data-employee-cancel>Cancel</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="glass-card" data-admin-section="doctors">
+          <h2 class="text-2xl font-bold">Doctors</h2>
+          <p class="muted mt-2 text-sm">Manage doctors created by employees.</p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <select class="form-select" data-admin-doctor-employee>
+              <option value="">All Employees</option>
+            </select>
+            <input type="search" class="form-input" placeholder="Search doctor" data-admin-doctor-search>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-admin-doctor-export="csv">Export CSV</button>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-admin-doctor-export="table">Export Table</button>
+          </div>
+          <div class="mt-4 grid gap-3" data-admin-doctors-list></div>
+        </section>
+
+        <section class="glass-card" data-admin-section="activities">
+          <h2 class="text-2xl font-bold">Daily Activity</h2>
+          <p class="muted mt-2 text-sm">Monitor visit logs submitted by employees.</p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <select class="form-select" data-admin-activity-employee>
+              <option value="">All Employees</option>
+            </select>
+            <input type="date" class="form-input" data-admin-activity-from>
+            <input type="date" class="form-input" data-admin-activity-to>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-admin-activity-export>Export CSV</button>
+          </div>
+          <div class="mt-4 grid gap-3" data-admin-activity-list></div>
+        </section>
+
+        <section class="glass-card" data-admin-section="newsroom">
+          <h2 class="text-2xl font-bold">Newsroom</h2>
+          <p class="muted mt-2 text-sm">Publish, update, or delete news items.</p>
+          <div class="mt-4 grid gap-3" data-news-list></div>
+          <form class="mt-6 grid gap-3" data-news-form>
+            <div class="grid gap-3 md:grid-cols-2">
+              <input name="title" type="text" placeholder="Title" required class="form-input">
+              <input name="category" type="text" placeholder="Category" class="form-input">
+              <input name="imageUrl" type="text" placeholder="Image URL" class="form-input">
+              <input name="publishedAt" type="date" required class="form-input">
+            </div>
+            <textarea name="summary" rows="3" placeholder="Summary" required class="form-textarea"></textarea>
+            <label class="text-sm flex items-center gap-2">
+              <input type="checkbox" name="isFeatured">
+              Mark as featured
+            </label>
+            <button type="submit" class="btn-brand">Save News</button>
+          </form>
+        </section>
+
+        <section class="glass-card" data-admin-section="focus">
+          <h2 class="text-2xl font-bold">Business Focus Areas</h2>
+          <p class="muted mt-2 text-sm">Manage therapeutic focus areas and medicine lists.</p>
+          <div class="mt-4 grid gap-3" data-focus-list></div>
+          <form class="mt-6 grid gap-3" data-focus-form>
+            <div class="grid gap-3 md:grid-cols-2">
+              <input name="title" type="text" placeholder="Title" required class="form-input">
+              <input name="subtitle" type="text" placeholder="Subtitle" required class="form-input">
+              <input name="imageUrl" type="text" placeholder="Image URL" required class="form-input">
+              <input name="order" type="number" placeholder="Order" class="form-input">
+            </div>
+            <textarea name="medicines" rows="3" placeholder="Medicines (comma separated)" class="form-textarea"></textarea>
+            <button type="submit" class="btn-brand">Save Focus Area</button>
+          </form>
+        </section>
+
+        <section class="glass-card" data-admin-section="forms">
+          <h2 class="text-2xl font-bold">Form Responses</h2>
+          <p class="muted mt-2 text-sm">Latest contact form messages captured in the database.</p>
+          <div class="mt-4 grid gap-3 lg:grid-cols-4">
+            <input type="text" class="form-input" placeholder="Search name, email, message" data-form-search>
+            <select class="form-select" data-form-topic>
+              <option value="">All Topics</option>
+            </select>
+            <input type="date" class="form-input" data-form-from>
+            <input type="date" class="form-input" data-form-to>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button type="button" class="btn-secondary !px-4 !py-2" data-form-clear>Clear Filters</button>
+            <button type="button" class="btn-brand !px-4 !py-2" data-form-export>Export CSV</button>
+          </div>
+          <div class="mt-4 grid gap-3" data-forms-list></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="assets/js/site.js"></script>
+  <script src="assets/js/chatbot.js"></script>
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>
+
+
+
