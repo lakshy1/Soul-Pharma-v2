@@ -2,7 +2,7 @@
   const root = document.documentElement;
   const body = document.body;
   const storageKey = "soul-theme";
-  const getApiBase = () => window.SoulApiBase || "http://localhost:4000/api";
+  const getApiBase = () => window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
 
   function applyTheme(theme) {
     if (theme === "dark") {
@@ -1296,5 +1296,6 @@
   setupBusinessData();
   setupContactForm();
 })();
+
 
 

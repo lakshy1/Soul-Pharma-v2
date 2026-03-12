@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -100,9 +100,9 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 class="text-2xl font-bold">Send Us a Message</h2>
-            <p class="muted mt-2 text-sm">Tell us about your request and weâ€™ll route it to the right team.</p>
+            <p class="muted mt-2 text-sm">Tell us about your request and we’ll route it to the right team.</p>
           </div>
-          <p class="text-xs uppercase tracking-[0.2em] text-rose-500">Netlify Form</p>
+          <!-- <p class="text-xs uppercase tracking-[0.2em] text-rose-500">Netlify Form</p> -->
         </div>
         <form name="contact" method="POST" data-netlify="true" class="mt-6 grid gap-4 lg:grid-cols-2" data-contact-form>
           <input type="hidden" name="form-name" value="contact">
@@ -184,9 +184,17 @@
 
   <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
   <script src="assets/js/site.js"></script>
+  
+  <script>
+    window.SoulApiBase = "https://soul-pharma-v2.onrender.com";
+    window.SoulChatbotConfig = { apiBaseUrl: window.SoulApiBase };
+  </script>
   <script src="assets/js/chatbot.js"></script>
 </body>
 </html>
+
+
+
 
 
 

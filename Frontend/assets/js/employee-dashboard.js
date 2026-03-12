@@ -1,6 +1,6 @@
 (() => {
   const tokenKey = "soul-employee-token";
-  const apiBase = window.SoulApiBase || "http://localhost:4000/api";
+  const apiBase = window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
   const token = localStorage.getItem(tokenKey);
 
   if (!token) {

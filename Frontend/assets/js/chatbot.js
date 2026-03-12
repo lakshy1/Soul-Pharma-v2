@@ -1,11 +1,13 @@
 ﻿(() => {
   const config = window.SoulChatbotConfig || {};
+  const globalApiBase = window.SoulApiBase || "";
   const origin = window.location.origin;
   const isFile = window.location.protocol === "file:" || origin === "null";
   const apiBase =
     config.apiBaseUrl ||
+    globalApiBase ||
     (isFile || origin.includes("localhost")
-      ? "http://localhost:4000"
+      ? "https://soul-pharma-v2.onrender.com"
       : origin);
 
   const root = document.createElement("div");
@@ -22,7 +24,7 @@
           <h3>SOUL AI</h3>
           <p>Gemini-powered support</p>
         </div>
-        <button class="soul-chatbot__close" aria-label="Close chatbot">×</button>
+        <button class="soul-chatbot__close" aria-label="Close chatbot">�</button>
       </div>
       <div class="soul-chatbot__body">
         <div class="soul-chatbot__messages" role="log" aria-live="polite"></div>

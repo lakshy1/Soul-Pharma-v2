@@ -1055,6 +1055,7 @@
 
   .focus-flip-grid {
     @apply grid gap-5 md:grid-cols-2 lg:grid-cols-3;
+    grid-auto-rows: 1fr;
   }
 
   .focus-flip-card {
@@ -1063,6 +1064,8 @@
     box-shadow: var(--card-shadow);
     transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
     background: color-mix(in srgb, var(--glass-bg) 80%, transparent);
+    min-height: 340px;
+    height: 100%;
   }
 
   .focus-flip-card:hover {
@@ -1079,7 +1082,7 @@
   .focus-flip-inner {
     @apply relative transition duration-500;
     transform-style: preserve-3d;
-    min-height: 340px;
+    height: 100%;
   }
 
   .focus-flip-card.is-flipped .focus-flip-inner {

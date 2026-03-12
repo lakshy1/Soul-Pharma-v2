@@ -1,6 +1,6 @@
-ï»¿(() => {
+(() => {
   const body = document.body;
-  const apiBase = window.SoulApiBase || "http://localhost:4000/api";
+  const apiBase = window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
   const routeKey = body.dataset.adminRoute || "";
   const tokenKey = "soul-admin-token";
 
@@ -129,7 +129,7 @@
             <div>
               <p class="text-lg font-semibold">${emp.name}</p>
               <p class="muted text-sm">${emp.email}</p>
-              <p class="muted text-sm">${emp.designation || ""} â€¢ ${emp.territoryName || ""}</p>
+              <p class="muted text-sm">${emp.designation || ""} • ${emp.territoryName || ""}</p>
             </div>
             <div class="flex flex-wrap gap-2">
               <button data-employee-edit="${emp._id}" class="btn-secondary !px-4 !py-2">Edit</button>
@@ -158,7 +158,7 @@
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p class="text-lg font-semibold">${item.title}</p>
-              <p class="muted text-sm">${item.category || "Update"} â€¢ ${new Date(item.publishedAt).toLocaleDateString("en-IN")}</p>
+              <p class="muted text-sm">${item.category || "Update"} • ${new Date(item.publishedAt).toLocaleDateString("en-IN")}</p>
               <p class="muted text-sm">${item.summary}</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -212,8 +212,8 @@
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p class="text-lg font-semibold">${item.name}</p>
-              <p class="muted text-sm">${item.email}${item.phone ? ` â€¢ ${item.phone}` : ""}</p>
-              <p class="muted text-sm">${item.topic || "general"} â€¢ ${new Date(item.createdAt).toLocaleString("en-IN")}</p>
+              <p class="muted text-sm">${item.email}${item.phone ? ` • ${item.phone}` : ""}</p>
+              <p class="muted text-sm">${item.topic || "general"} • ${new Date(item.createdAt).toLocaleString("en-IN")}</p>
               <p class="muted text-sm">${item.message}</p>
             </div>
           </div>
@@ -237,7 +237,7 @@
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p class="text-lg font-semibold">${doc.name}</p>
-              <p class="muted text-sm">${doc.speciality || "General"} â€¢ ${doc.phone || "â€”"}</p>
+              <p class="muted text-sm">${doc.speciality || "General"} • ${doc.phone || "—"}</p>
               <p class="muted text-sm">Employee: ${employeeMap[doc.createdBy] || "Unknown"}</p>
             </div>
             <div class="flex flex-wrap gap-2">
