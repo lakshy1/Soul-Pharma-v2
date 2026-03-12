@@ -24,7 +24,7 @@
           <h3>SOUL AI</h3>
           <p>Gemini-powered support</p>
         </div>
-        <button class="soul-chatbot__close" aria-label="Close chatbot">�</button>
+        <button class="soul-chatbot__close" aria-label="Close chatbot">&times;</button>
       </div>
       <div class="soul-chatbot__body">
         <div class="soul-chatbot__messages" role="log" aria-live="polite"></div>
