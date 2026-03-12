@@ -30,7 +30,7 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Route", "x-admin-route"]
 }));
 app.use(express.json({ limit: "1mb" }));
 
