@@ -9,4 +9,13 @@ const nextSequence = async (key) => {
   return counter.seq;
 };
 
-module.exports = { nextSequence };
+const setSequence = async (key, seq = 0) => {
+  const counter = await Counter.findOneAndUpdate(
+    { key },
+    { $set: { seq } },
+    { new: true, upsert: true }
+  );
+  return counter.seq;
+};
+
+module.exports = { nextSequence, setSequence };

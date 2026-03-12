@@ -1,10 +1,14 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
+const jwt = require("jsonwebtoken");
+const { Server } = require("socket.io");
 const cors = require("cors");
 const connectDb = require("./config/db");
 const Admin = require("./models/Admin");
 const { hashPassword, verifyPassword } = require("./utils/password");
 const seedData = require("./utils/seedData");
+const { setIo } = require("./utils/socket");
 
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
@@ -15,6 +19,7 @@ const formRoutes = require("./routes/forms");
 const chatbotRoutes = require("./routes/chatbot");
 
 const app = express();
+const server = http.createServer(app);
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -33,6 +38,41 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Route", "x-admin-route"]
 }));
 app.use(express.json({ limit: "1mb" }));
+
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  if (!token) {
+    return next(new Error("Unauthorized"));
+  }
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = payload;
+    return next();
+  } catch (error) {
+    return next(new Error("Unauthorized"));
+  }
+});
+
+io.on("connection", (socket) => {
+  const role = socket.user?.role;
+  if (role === "admin") {
+    socket.join("admins");
+  }
+  if (role === "employee") {
+    socket.join(`employee:${socket.user.id}`);
+    socket.join("employees");
+  }
+});
+
+setIo(io);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -79,7 +119,7 @@ const start = async () => {
     await ensureAdmin();
     await seedData();
     const port = process.env.PORT || 5000;
-    app.listen(port, () => console.log(`API running on port ${port}`));
+    server.listen(port, () => console.log(`API running on port ${port}`));
   } catch (error) {
     console.error("Failed to start server:", error.message);
     process.exit(1);

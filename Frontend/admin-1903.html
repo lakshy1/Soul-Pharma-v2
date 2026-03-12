@@ -15,6 +15,508 @@
   <link rel="stylesheet" href="build/main.css">
   <link rel="stylesheet" href="assets/css/chatbot.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --admin-ink: #0f172a;
+      --admin-muted: #64748b;
+      --admin-accent: #d62839;
+      --admin-accent-soft: rgba(214, 40, 57, 0.12);
+      --admin-card: rgba(255, 255, 255, 0.78);
+      --admin-card-strong: rgba(255, 255, 255, 0.92);
+      --admin-border: rgba(148, 163, 184, 0.25);
+      --admin-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+    }
+    body[data-page="admin"] {
+      color: var(--admin-ink);
+      background: radial-gradient(circle at 10% 10%, rgba(214, 40, 57, 0.12), transparent 45%),
+        radial-gradient(circle at 90% 0%, rgba(244, 114, 182, 0.12), transparent 40%),
+        #f8f5f6;
+    }
+    body[data-page="admin"] .glass-nav {
+      border: 1px solid var(--admin-border);
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(18px);
+    }
+    body[data-page="admin"] .admin-title .focus-pill {
+      background: var(--admin-accent-soft);
+      color: var(--admin-accent);
+      border: 1px solid rgba(214, 40, 57, 0.25);
+    }
+    body[data-page="admin"] .admin-tab {
+      border-radius: 999px;
+      padding: 0.45rem 1rem;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+    body[data-page="admin"] .admin-tab:hover {
+      border-color: var(--admin-border);
+      background: rgba(255, 255, 255, 0.65);
+    }
+    body[data-page="admin"] .admin-tab.is-active {
+      background: var(--admin-accent);
+      color: #fff;
+      border-color: rgba(214, 40, 57, 0.5);
+      box-shadow: 0 10px 24px rgba(214, 40, 57, 0.25);
+    }
+    body[data-page="admin"] .admin-badge {
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--admin-ink);
+      border: 1px solid var(--admin-border);
+    }
+    body[data-page="admin"] .hero-panel {
+      border-radius: 28px;
+      border: 1px solid var(--admin-border);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.6));
+      box-shadow: var(--admin-shadow);
+    }
+    body[data-page="admin"] [data-admin-section="overview"] {
+      display: grid;
+      gap: 1.4rem;
+    }
+    body[data-page="admin"] [data-admin-section="overview"].hidden {
+      display: none !important;
+    }
+    body[data-page="admin"] [data-admin-section="overview"] .chart-card,
+    body[data-page="admin"] [data-admin-section="overview"] .rounded-xl {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    body[data-page="admin"] [data-admin-section="overview"] .chart-card:hover,
+    body[data-page="admin"] [data-admin-section="overview"] .rounded-xl:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
+    }
+    body[data-page="admin"] [data-admin-section="overview"] .chart-title {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      color: var(--admin-muted);
+    }
+    body[data-page="admin"] [data-admin-section="overview"] .chart-card {
+      background: rgba(255, 255, 255, 0.95);
+    }
+    body[data-page="admin"] [data-admin-section="overview"] [data-live-locations] {
+      display: grid;
+      gap: 1rem;
+    }
+    body[data-page="admin"] [data-admin-section="overview"] [data-live-locations] > div {
+      border-radius: 20px;
+    }
+    body[data-page="admin"] [data-admin-section="overview"] [data-location-map] {
+      min-height: 300px;
+    }
+    body[data-page="admin"] .hero-panel .section-title {
+      letter-spacing: -0.02em;
+    }
+    body[data-page="admin"] .glass-card {
+      border-radius: 26px;
+      border: 1px solid var(--admin-border);
+      background: var(--admin-card);
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+    }
+    body[data-page="admin"] .chart-card {
+      border-radius: 22px;
+      border: 1px solid var(--admin-border);
+      background: var(--admin-card-strong);
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+    }
+    body[data-page="admin"] .focus-pill {
+      border-radius: 999px;
+    }
+    body[data-page="admin"] .btn-brand {
+      box-shadow: 0 16px 30px rgba(214, 40, 57, 0.24);
+    }
+    body[data-page="admin"] [data-location-map] {
+      min-height: 320px;
+    }
+    body[data-page="admin"] [data-live-locations] > div {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 14px 24px rgba(15, 23, 42, 0.08);
+    }
+    body[data-page="admin"] .muted {
+      color: var(--admin-muted);
+    }
+    body[data-page="admin"] .presence-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+    body[data-page="admin"] .presence-pill.is-online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #0f766e;
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+    body[data-page="admin"] .presence-pill.is-offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #b91c1c;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+    body[data-page="admin"] .battery-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.85);
+    }
+    body[data-page="admin"] .battery-pill.is-low {
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #b91c1c;
+      background: rgba(239, 68, 68, 0.12);
+    }
+    body[data-page="admin"] .battery-pill.is-unknown {
+      color: #64748b;
+      background: rgba(148, 163, 184, 0.15);
+    }
+    body[data-page="admin"] .battery-shell {
+      width: 48px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.25);
+      overflow: hidden;
+      position: relative;
+    }
+    body[data-page="admin"] .battery-bar {
+      display: block;
+      height: 100%;
+      width: calc(var(--battery-level, 0) * 1%);
+      border-radius: inherit;
+      transition: width 0.2s ease;
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+    }
+    body[data-page="admin"] .battery-bar.is-mid {
+      background: linear-gradient(90deg, #f59e0b, #f97316);
+    }
+    body[data-page="admin"] .battery-bar.is-low {
+      background: linear-gradient(90deg, #ef4444, #b91c1c);
+    }
+    body[data-page="admin"] .battery-bar.is-unknown {
+      width: 40%;
+      background: linear-gradient(90deg, #94a3b8, #64748b);
+    }
+    body[data-page="admin"] .sync-route-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: 1px solid rgba(14, 116, 144, 0.35);
+      background: rgba(14, 116, 144, 0.12);
+      color: #0e7490;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    body[data-page="admin"] .sync-route-btn:hover {
+      transform: translateY(-1px) rotate(10deg);
+      box-shadow: 0 10px 18px rgba(14, 116, 144, 0.25);
+    }
+    body[data-page="admin"][data-theme="dark"] .sync-route-btn {
+      color: #7dd3fc;
+      background: rgba(14, 116, 144, 0.2);
+      border-color: rgba(14, 116, 144, 0.45);
+    }
+    body[data-page="admin"] .map-link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: 1px solid rgba(214, 40, 57, 0.35);
+      color: var(--admin-accent);
+      background: rgba(214, 40, 57, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    body[data-page="admin"] .map-link-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(214, 40, 57, 0.25);
+      background: rgba(214, 40, 57, 0.14);
+    }
+    body[data-page="admin"] .route-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid rgba(14, 116, 144, 0.35);
+      color: #0e7490;
+      background: rgba(14, 116, 144, 0.12);
+    }
+    body[data-page="admin"] .route-legend {
+      margin-top: 0.6rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--admin-muted);
+    }
+    body[data-page="admin"] .route-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    body[data-page="admin"] .route-dot::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+    body[data-page="admin"] .route-dot.is-end::before {
+      background: #ef4444;
+    }
+    body[data-page="admin"] .route-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    body[data-page="admin"] .route-line::before {
+      content: "";
+      width: 26px;
+      height: 0;
+      border-top: 2px dashed #0ea5e9;
+    }
+    body[data-page="admin"] .admin-shell {
+      gap: 1rem;
+    }
+    body[data-page="admin"] .admin-nav {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    body[data-page="admin"] .admin-tab {
+      font-weight: 600;
+    }
+    body[data-page="admin"] .chart-card,
+    body[data-page="admin"] .glass-card {
+      padding: 1.4rem;
+    }
+    body[data-page="admin"] .hero-panel {
+      padding: 1.6rem;
+    }
+    body[data-page="admin"] .hero-panel p {
+      max-width: 640px;
+    }
+    body[data-page="admin"] [data-location-map] {
+      min-height: 280px;
+    }
+    body[data-page="admin"] .live-card-actions {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.6rem;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    body[data-page="admin"] .live-card-actions > * {
+      width: fit-content;
+    }
+    body[data-page="admin"] .live-card-actions .battery-pill {
+      min-width: 130px;
+      justify-content: center;
+    }
+    body[data-page="admin"] .live-card-actions .route-pill,
+    body[data-page="admin"] .live-card-actions .presence-pill,
+    body[data-page="admin"] .live-card-actions .map-link-btn {
+      min-width: 110px;
+      justify-content: center;
+    }
+    body[data-page="admin"] .route-pill--sync {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    body[data-page="admin"] .route-pill--sync .sync-route-btn {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(14, 116, 144, 0.35);
+      background: rgba(14, 116, 144, 0.12);
+      color: #0e7490;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    body[data-page="admin"] .route-pill {
+      text-align: center;
+    }
+    @media (max-width: 1024px) {
+      body[data-page="admin"] .admin-nav {
+        justify-content: flex-start;
+      }
+      body[data-page="admin"] .chart-card,
+      body[data-page="admin"] .glass-card {
+        padding: 1.2rem;
+      }
+      body[data-page="admin"] .hero-panel {
+        padding: 1.4rem;
+      }
+      body[data-page="admin"] [data-location-map] {
+        min-height: 240px;
+      }
+    }
+    @media (max-width: 768px) {
+      body[data-page="admin"] .hero-panel {
+        border-radius: 22px;
+      }
+      body[data-page="admin"] .admin-tab {
+        width: 100%;
+        justify-content: space-between;
+      }
+      body[data-page="admin"] .admin-badge {
+        margin-left: auto;
+      }
+      body[data-page="admin"] .chart-card,
+      body[data-page="admin"] .glass-card {
+        padding: 1rem;
+      }
+      body[data-page="admin"] [data-location-map] {
+        min-height: 200px;
+      }
+      body[data-page="admin"] .live-card-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        justify-items: stretch;
+      }
+      body[data-page="admin"] .live-card-actions > * {
+        justify-self: stretch;
+        width: 100%;
+      }
+      body[data-page="admin"] .live-card-actions .map-link-btn {
+        grid-column: auto;
+        width: 100%;
+      }
+      body[data-page="admin"] .live-card-actions .battery-pill {
+        min-width: 0;
+        width: 100%;
+      }
+      body[data-page="admin"] .live-card-actions .route-pill,
+      body[data-page="admin"] .live-card-actions .presence-pill {
+        min-width: 0;
+        width: 100%;
+      }
+      body[data-page="admin"] .route-pill--sync {
+        justify-content: space-between;
+      }
+    }
+    body[data-page="admin"][data-theme="dark"] {
+      color: #e2e8f0;
+      background: radial-gradient(circle at 10% 10%, rgba(239, 68, 68, 0.18), transparent 50%),
+        radial-gradient(circle at 90% 0%, rgba(56, 189, 248, 0.14), transparent 42%),
+        #0b1120;
+    }
+    body[data-page="admin"][data-theme="dark"] .glass-nav {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.65);
+    }
+    body[data-page="admin"][data-theme="dark"] .hero-panel,
+    body[data-page="admin"][data-theme="dark"] .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+    body[data-page="admin"][data-theme="dark"] .chart-card {
+      background: rgba(15, 23, 42, 0.85);
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: 0 18px 34px rgba(0, 0, 0, 0.35);
+    }
+    body[data-page="admin"][data-theme="dark"] .admin-tab {
+      color: #e2e8f0;
+      border-color: transparent;
+    }
+    body[data-page="admin"][data-theme="dark"] .admin-tab:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(148, 163, 184, 0.25);
+    }
+    body[data-page="admin"][data-theme="dark"] .admin-tab.is-active {
+      background: #ef4444;
+      color: #0b1120;
+      box-shadow: 0 14px 28px rgba(239, 68, 68, 0.35);
+    }
+    body[data-page="admin"][data-theme="dark"] .admin-badge {
+      background: rgba(148, 163, 184, 0.18);
+      color: #e2e8f0;
+      border-color: rgba(148, 163, 184, 0.2);
+    }
+    body[data-page="admin"][data-theme="dark"] .focus-pill {
+      background: rgba(248, 113, 113, 0.2);
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.3);
+    }
+    body[data-page="admin"][data-theme="dark"] .presence-pill.is-online {
+      background: rgba(16, 185, 129, 0.2);
+      color: #a7f3d0;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    body[data-page="admin"][data-theme="dark"] .presence-pill.is-offline {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+    body[data-page="admin"][data-theme="dark"] .map-link-btn {
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.35);
+      background: rgba(248, 113, 113, 0.12);
+    }
+    body[data-page="admin"][data-theme="dark"] .map-link-btn:hover {
+      background: rgba(248, 113, 113, 0.2);
+      box-shadow: 0 10px 18px rgba(248, 113, 113, 0.3);
+    }
+    body[data-page="admin"][data-theme="dark"] .route-pill {
+      color: #7dd3fc;
+      background: rgba(14, 116, 144, 0.2);
+      border-color: rgba(14, 116, 144, 0.45);
+    }
+    body[data-page="admin"][data-theme="dark"] .route-legend {
+      color: #94a3b8;
+    }
+    body[data-page="admin"][data-theme="dark"] .battery-pill {
+      color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.65);
+      border-color: rgba(148, 163, 184, 0.3);
+    }
+    body[data-page="admin"][data-theme="dark"] .battery-pill.is-low {
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+    body[data-page="admin"][data-theme="dark"] .battery-pill.is-unknown {
+      color: #94a3b8;
+      background: rgba(148, 163, 184, 0.18);
+    }
+    body[data-page="admin"][data-theme="dark"] .muted {
+      color: #94a3b8;
+    }
+    body[data-page="admin"][data-theme="dark"] [data-live-locations] > div {
+      background: rgba(15, 23, 42, 0.9);
+      border-color: rgba(148, 163, 184, 0.2);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+  </style>
 </head>
 <body data-page="admin" data-admin-route="1903">
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
@@ -40,22 +542,28 @@
         </div>
         <div class="admin-nav hidden items-center gap-2 md:flex">
           <button type="button" class="admin-tab is-active" data-admin-nav="overview">Overview</button>
+          <button type="button" class="admin-tab" data-admin-nav="locations">Location History <span class="admin-badge" data-badge="locations">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="routes">Route & Travel</button>
           <button type="button" class="admin-tab" data-admin-nav="employees">Employees <span class="admin-badge" data-badge="employees">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="doctors">Doctors <span class="admin-badge" data-badge="doctors">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="activities">Daily Activity <span class="admin-badge" data-badge="activities">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="newsroom">Newsroom <span class="admin-badge" data-badge="news">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="focus">Business Focus <span class="admin-badge" data-badge="focus">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="forms">Form Responses <span class="admin-badge" data-badge="forms">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="notifications">Notifications <span class="admin-badge" data-badge="notifications">0</span></button>
         </div>
         <div id="admin-menu" class="hidden pt-4 md:hidden" data-mobile-menu>
           <div class="grid gap-2">
             <button type="button" class="admin-tab w-full text-left is-active" data-admin-nav="overview">Overview</button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="locations">Location History <span class="admin-badge" data-badge="locations">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="routes">Route & Travel</button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="employees">Employees <span class="admin-badge" data-badge="employees">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="doctors">Doctors <span class="admin-badge" data-badge="doctors">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="activities">Daily Activity <span class="admin-badge" data-badge="activities">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="newsroom">Newsroom <span class="admin-badge" data-badge="news">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="focus">Business Focus <span class="admin-badge" data-badge="focus">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="forms">Form Responses <span class="admin-badge" data-badge="forms">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="notifications">Notifications <span class="admin-badge" data-badge="notifications">0</span></button>
             <button type="button" class="btn-secondary !px-4 !py-2 hidden" data-admin-logout>Logout</button>
           </div>
         </div>
@@ -89,6 +597,25 @@
       <section class="space-y-8 hidden" data-admin-dashboard>
         <section class="glass-card" data-admin-section="overview">
           <h2 class="text-2xl font-bold">Overview</h2>
+          <div class="mt-4 rounded-2xl border border-white/20 bg-white/5 p-4">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500">Live Locations</p>
+                  <h3 class="text-xl font-semibold">Employee Tracking Dashboard</h3>
+                  <p class="muted mt-1 text-sm">Realtime GPS feed with map view, proximity links, and device status.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="focus-pill" data-location-status>Offline</span>
+                  <button type="button" class="btn-secondary !px-4 !py-2" data-location-refresh>Refresh</button>
+                </div>
+            </div>
+            <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr,1fr]">
+              <div class="rounded-xl border border-white/30 overflow-hidden">
+                <div class="h-72" data-location-map></div>
+              </div>
+              <div class="grid gap-3" data-live-locations></div>
+            </div>
+          </div>
           <div class="mt-6 grid gap-4 md:grid-cols-4">
             <div class="rounded-xl border border-white/30 p-4 text-center">
               <p class="text-3xl font-bold" data-summary-employees>0</p>
@@ -139,6 +666,47 @@
           </div>
         </section>
 
+        <section class="glass-card" data-admin-section="locations">
+          <h2 class="text-2xl font-bold">Location History</h2>
+          <p class="muted mt-2 text-sm">Every 2 minutes, review location trails with exports and filters.</p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <select class="form-select" data-location-employee>
+              <option value="">All Employees</option>
+            </select>
+            <input type="date" class="form-input" data-location-from>
+            <input type="date" class="form-input" data-location-to>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-location-export="csv">Export CSV</button>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-location-export="table">Export Table</button>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-location-delete>Delete Range</button>
+          </div>
+          <div class="mt-4 grid gap-3" data-location-history-list></div>
+        </section>
+
+        <section class="glass-card" data-admin-section="routes">
+          <h2 class="text-2xl font-bold">Route & Travel</h2>
+          <p class="muted mt-2 text-sm">Pick an employee and date to view their route and estimated travel distance.</p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <select class="form-select" data-route-employee>
+              <option value="">Select employee</option>
+            </select>
+            <input type="date" class="form-input" data-route-date>
+            <button type="button" class="btn-secondary !px-4 !py-2" data-route-load>Show Route</button>
+            <button type="button" class="btn-secondary !px-4 !py-2 hidden" data-route-export>Download HTML</button>
+          </div>
+          <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr,1fr]">
+            <div class="rounded-xl border border-white/30 overflow-hidden">
+              <div data-route-map style="height:300px;width:100%;"></div>
+            </div>
+            <div class="rounded-xl border border-white/30 p-4">
+              <div class="flex items-center justify-between">
+                <p class="text-sm uppercase tracking-[0.14em] text-rose-500">Travel Summary</p>
+                <span class="route-pill hidden" data-route-summary>Route • 0 km</span>
+              </div>
+              <div class="mt-3 grid gap-2 text-sm" data-route-points></div>
+            </div>
+          </div>
+        </section>
+
         <section class="glass-card" data-admin-section="employees">
           <h2 class="text-2xl font-bold">Employees</h2>
           <p class="muted mt-2 text-sm">Create, update, activate, or remove employee profiles.</p>
@@ -178,6 +746,27 @@
             <button type="button" class="btn-secondary !px-4 !py-2" data-admin-doctor-export="table">Export Table</button>
           </div>
           <div class="mt-4 grid gap-3" data-admin-doctors-list></div>
+          <form class="mt-6 grid gap-3" data-admin-doctor-form>
+            <div class="hidden rounded-lg border border-amber-500/30 bg-amber-500/5 p-3" data-admin-doctor-edit-indicator>
+              <p class="text-sm font-semibold text-amber-600">Editing: <span data-edit-doctor-name></span></p>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+              <input name="name" type="text" placeholder="Doctor name" required class="form-input">
+              <input name="speciality" type="text" placeholder="Speciality" class="form-input">
+              <input name="phone" type="text" placeholder="Phone" required class="form-input">
+              <input name="email" type="email" placeholder="Email" class="form-input">
+              <input name="clinicName" type="text" placeholder="Clinic name" class="form-input">
+              <input name="address" type="text" placeholder="Address" class="form-input">
+              <input name="city" type="text" placeholder="City" class="form-input">
+              <input name="state" type="text" placeholder="State" class="form-input">
+              <input name="pincode" type="text" placeholder="Pincode" class="form-input">
+            </div>
+            <textarea name="notes" rows="3" placeholder="Notes" class="form-textarea"></textarea>
+            <div class="flex flex-wrap gap-3">
+              <button type="submit" class="btn-brand" data-admin-doctor-submit>Update Doctor</button>
+              <button type="button" class="btn-secondary hidden" data-admin-doctor-cancel>Cancel</button>
+            </div>
+          </form>
         </section>
 
         <section class="glass-card" data-admin-section="activities">
@@ -247,16 +836,42 @@
           </div>
           <div class="mt-4 grid gap-3" data-forms-list></div>
         </section>
+
+        <section class="glass-card" data-admin-section="notifications">
+          <h2 class="text-2xl font-bold">Notifications</h2>
+          <p class="muted mt-2 text-sm">Send real-time alerts to employees and review delivery logs.</p>
+          <form class="mt-4 grid gap-3" data-admin-notification-form>
+            <div class="grid gap-3 md:grid-cols-2">
+              <select class="form-select" name="employeeId" data-admin-notification-employee>
+                <option value="">All Employees</option>
+              </select>
+              <select class="form-select" name="priority">
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="urgent">Urgent</option>
+              </select>
+              <input name="title" type="text" class="form-input" placeholder="Notification title">
+              <input name="message" type="text" class="form-input" placeholder="Notification message" required>
+            </div>
+            <button type="submit" class="btn-brand">Send Notification</button>
+          </form>
+          <div class="mt-4 grid gap-3" data-admin-notification-list></div>
+        </section>
       </section>
     </main>
   </div>
 
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="assets/js/site.js"></script>
   
   <script>
-    window.SoulApiBase = "https://soul-pharma-v2.onrender.com/api";
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+    const localApi = "http://localhost:4000/api";
+    const remoteApi = "https://soul-pharma-v2.onrender.com/api";
+    window.SoulApiBase = isLocal ? localApi : remoteApi;
     window.SoulChatbotConfig = { apiBaseUrl: "https://soul-pharma-v2.onrender.com" };
   </script>
   <script src="assets/js/chatbot.js"></script>

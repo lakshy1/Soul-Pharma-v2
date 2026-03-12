@@ -7,11 +7,39 @@ const FocusArea = require("../models/FocusArea");
 const FormResponse = require("../models/FormResponse");
 const Doctor = require("../models/Doctor");
 const Activity = require("../models/Activity");
+const EmployeeLocation = require("../models/EmployeeLocation");
+const Notification = require("../models/Notification");
 const auth = require("../middleware/auth");
 const { hashPassword, verifyPassword } = require("../utils/password");
-const { nextSequence } = require("../utils/counter");
+const { nextSequence, setSequence } = require("../utils/counter");
+const { getIo } = require("../utils/socket");
 
 const router = express.Router();
+
+const reindexDoctorSerials = async (employeeId) => {
+  const doctors = await Doctor.find({ createdBy: employeeId }).sort({ createdAt: 1 });
+  if (!doctors.length) {
+    await setSequence(`doctor:${employeeId}`, 0);
+    return;
+  }
+
+  const tempUpdates = doctors.map((doc, index) => ({
+    updateOne: {
+      filter: { _id: doc._id },
+      update: { $set: { serialNumber: -(index + 1) } },
+    },
+  }));
+  await Doctor.bulkWrite(tempUpdates, { ordered: true });
+
+  const finalUpdates = doctors.map((doc, index) => ({
+    updateOne: {
+      filter: { _id: doc._id },
+      update: { $set: { serialNumber: index + 1 } },
+    },
+  }));
+  await Doctor.bulkWrite(finalUpdates, { ordered: true });
+  await setSequence(`doctor:${employeeId}`, doctors.length);
+};
 
 const requireAdminRoute = (req, res, next) => {
   const gate = process.env.ADMIN_ROUTE_KEY;
@@ -249,7 +277,12 @@ router.post("/doctors", auth(["admin"]), async (req, res) => {
     if (!employeeId || !name || !phone) {
       return res.status(400).json({ message: "Employee, doctor name, and phone are required" });
     }
-    const serialNumber = await nextSequence(`doctor:${employeeId}`);
+    const counterKey = `doctor:${employeeId}`;
+    const currentCount = await Doctor.countDocuments({ createdBy: employeeId });
+    if (currentCount === 0) {
+      await setSequence(counterKey, 0);
+    }
+    const serialNumber = await nextSequence(counterKey);
     const doctor = await Doctor.create({
       serialNumber,
       name,
@@ -288,6 +321,7 @@ router.delete("/doctors/:id", auth(["admin"]), async (req, res) => {
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
+    await reindexDoctorSerials(doctor.createdBy);
     return res.json({ message: "Doctor deleted" });
   } catch (error) {
     return res.status(500).json({ message: "Unable to delete doctor" });
@@ -370,6 +404,147 @@ router.delete("/focus-areas/:id", auth(["admin"]), async (req, res) => {
     return res.json({ message: "Focus area deleted" });
   } catch (error) {
     return res.status(500).json({ message: "Unable to delete focus area" });
+  }
+});
+
+router.get("/locations/live", auth(["admin"]), async (_req, res) => {
+  try {
+    const pipeline = [
+      { $sort: { receivedAt: -1 } },
+      {
+        $group: {
+          _id: "$employee",
+          last: { $first: "$$ROOT" },
+        },
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "_id",
+          foreignField: "_id",
+          as: "employee",
+        },
+      },
+      { $unwind: "$employee" },
+      {
+        $project: {
+          _id: 0,
+          employee: {
+            id: "$employee._id",
+            name: "$employee.name",
+            email: "$employee.email",
+            employeeId: "$employee.employeeId",
+            territoryName: "$employee.territoryName",
+            designation: "$employee.designation",
+            status: "$employee.status",
+          },
+          location: {
+            id: "$last._id",
+            latitude: "$last.latitude",
+            longitude: "$last.longitude",
+            accuracy: "$last.accuracy",
+            capturedAt: "$last.capturedAt",
+            receivedAt: "$last.receivedAt",
+            battery: "$last.battery",
+            device: "$last.device",
+          },
+        },
+      },
+      { $sort: { "location.receivedAt": -1 } },
+    ];
+    const locations = await EmployeeLocation.aggregate(pipeline);
+    return res.json({ locations });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch live locations" });
+  }
+});
+
+router.get("/locations/history", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId, from, to } = req.query;
+    const limit = Math.min(Number(req.query.limit || 300), 1000);
+    const filter = {};
+    if (employeeId) filter.employee = employeeId;
+    if (from || to) {
+      filter.receivedAt = {};
+      if (from) filter.receivedAt.$gte = new Date(from);
+      if (to) filter.receivedAt.$lte = new Date(to);
+    }
+    const locations = await EmployeeLocation.find(filter)
+      .populate("employee", "name email employeeId territoryName designation")
+      .sort({ receivedAt: -1 })
+      .limit(limit);
+    return res.json({ locations });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch location history" });
+  }
+});
+
+router.delete("/locations/history", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId, from, to } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ message: "From and to dates are required" });
+    }
+    const filter = {};
+    if (employeeId) filter.employee = employeeId;
+    filter.receivedAt = { $gte: new Date(from), $lte: new Date(to) };
+    const result = await EmployeeLocation.deleteMany(filter);
+    return res.json({ deletedCount: result.deletedCount });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to delete location history" });
+  }
+});
+
+router.post("/notifications", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId, title, message, priority } = req.body;
+    if (!message) {
+      return res.status(400).json({ message: "Notification message is required" });
+    }
+    const notification = await Notification.create({
+      employee: employeeId || undefined,
+      title,
+      message,
+      priority: priority || "info",
+      createdBy: req.user.id,
+      deliveredAt: new Date(),
+    });
+
+    const io = getIo();
+    if (io) {
+      const payload = {
+        id: notification._id,
+        employeeId: employeeId || null,
+        title: notification.title,
+        message: notification.message,
+        priority: notification.priority,
+        createdAt: notification.createdAt,
+      };
+      if (employeeId) {
+        io.to(`employee:${employeeId}`).emit("notification:new", payload);
+      } else {
+        io.to("employees").emit("notification:new", payload);
+      }
+    }
+
+    return res.status(201).json({ notification });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to send notification" });
+  }
+});
+
+router.get("/notifications", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId } = req.query;
+    const filter = employeeId ? { employee: employeeId } : {};
+    const notifications = await Notification.find(filter)
+      .populate("employee", "name email employeeId")
+      .sort({ createdAt: -1 })
+      .limit(200);
+    return res.json({ notifications });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch notifications" });
   }
 });
 

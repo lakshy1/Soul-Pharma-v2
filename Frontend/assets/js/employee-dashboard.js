@@ -15,6 +15,15 @@
   const statusPill = document.querySelector("[data-employee-status]");
   const rolePill = document.querySelector("[data-employee-role]");
 
+  const trackingStatus = document.querySelector("[data-tracking-status]");
+  const trackingGps = document.querySelector("[data-tracking-gps]");
+  const trackingNotifications = document.querySelector("[data-tracking-notifications]");
+  const trackingBattery = document.querySelector("[data-tracking-battery]");
+  const trackingLast = document.querySelector("[data-tracking-last]");
+  const notificationList = document.querySelector("[data-employee-notification-list]");
+  const notificationCountNodes = [...document.querySelectorAll("[data-emp-notification-count]")];
+  const notificationButton = document.querySelector("[data-emp-notification-button]");
+
   const nameEl = document.querySelector("[data-employee-name]");
   const emailEl = document.querySelector("[data-employee-email]");
   const idEl = document.querySelector("[data-employee-id]");
@@ -29,6 +38,7 @@
   const sections = [...document.querySelectorAll("[data-emp-section]")];
   const menuToggle = document.querySelector("[data-emp-menu-toggle]");
   const mobileMenu = document.querySelector("[data-emp-mobile-menu]");
+  const homeButton = document.querySelector("[data-emp-home]");
 
   const doctorsList = document.querySelector("[data-doctors-list]");
   const doctorSearch = document.querySelector("[data-doctor-search]");
@@ -64,6 +74,12 @@
   let editingDoctorId = null;
   let selectedMonth = new Date();
   let activityDoctorCache = [];
+  let watchId = null;
+  let lastSentAt = 0;
+  let deviceInfo = null;
+  let batteryInfo = null;
+  let locationQueue = [];
+  let socket = null;
 
   const setFeedback = (message, isError = false) => {
     if (!feedback) return;
@@ -115,38 +131,297 @@
     return data;
   };
 
+  const socketBase = apiBase.replace(/\/api\/?$/, "");
+
+  const setTrackingText = (el, value) => {
+    if (!el) return;
+    el.textContent = value;
+  };
+
+  const updateTrackingStatus = (text) => {
+    if (trackingStatus) trackingStatus.textContent = text;
+  };
+
+  const getDeviceInfo = () => ({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    screen: { width: window.screen?.width || 0, height: window.screen?.height || 0 },
+    deviceMemory: navigator.deviceMemory,
+    hardwareConcurrency: navigator.hardwareConcurrency,
+  });
+
+  const getNetworkInfo = () => {
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!connection) return { online: navigator.onLine };
+    return {
+      online: navigator.onLine,
+      effectiveType: connection.effectiveType,
+      rtt: connection.rtt,
+      downlink: connection.downlink,
+    };
+  };
+
+  const loadBatteryInfo = async () => {
+    if (!navigator.getBattery) {
+      setTrackingText(trackingBattery, "Not supported");
+      return;
+    }
+    const battery = await navigator.getBattery();
+    const update = () => {
+      batteryInfo = { level: battery.level, charging: battery.charging };
+      const pct = Math.round(battery.level * 100);
+      setTrackingText(trackingBattery, `${pct}% ${battery.charging ? "charging" : "on battery"}`);
+    };
+    update();
+    battery.addEventListener("levelchange", update);
+    battery.addEventListener("chargingchange", update);
+  };
+
+  const saveQueue = () => {
+    try {
+      localStorage.setItem("soul-location-queue", JSON.stringify(locationQueue.slice(-50)));
+    } catch (_e) {
+      // ignore storage errors
+    }
+  };
+
+  const loadQueue = () => {
+    try {
+      const raw = localStorage.getItem("soul-location-queue");
+      locationQueue = raw ? JSON.parse(raw) : [];
+    } catch (_e) {
+      locationQueue = [];
+    }
+  };
+
+  const sendLocation = async (payload) => {
+    try {
+      await request("/employee/locations", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setTrackingText(trackingLast, new Date().toLocaleTimeString("en-IN"));
+      updateTrackingStatus("Live");
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  };
+
+  const flushQueue = async () => {
+    if (!locationQueue.length) return;
+    const copy = [...locationQueue];
+    locationQueue = [];
+    for (const item of copy) {
+      const ok = await sendLocation(item);
+      if (!ok) {
+        locationQueue.unshift(item);
+        break;
+      }
+    }
+    saveQueue();
+  };
+
+  const handlePosition = async (pos) => {
+    const now = Date.now();
+    if (now - lastSentAt < 180000) return;
+    lastSentAt = now;
+    setTrackingText(trackingGps, "Active");
+    const payload = {
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+      altitude: pos.coords.altitude,
+      speed: pos.coords.speed,
+      heading: pos.coords.heading,
+      capturedAt: pos.timestamp ? new Date(pos.timestamp).toISOString() : new Date().toISOString(),
+      device: deviceInfo,
+      battery: batteryInfo,
+      network: getNetworkInfo(),
+      source: "watchPosition",
+    };
+    if (!navigator.onLine) {
+      locationQueue.push(payload);
+      saveQueue();
+      updateTrackingStatus("Offline - queued");
+      return;
+    }
+    const ok = await sendLocation(payload);
+    if (!ok) {
+      locationQueue.push(payload);
+      saveQueue();
+      updateTrackingStatus("Delayed");
+    }
+  };
+
+  const handlePositionError = () => {
+    setTrackingText(trackingGps, "Denied");
+    updateTrackingStatus("GPS blocked");
+  };
+
+  const startTracking = () => {
+    if (!navigator.geolocation) {
+      setTrackingText(trackingGps, "Not supported");
+      updateTrackingStatus("Unavailable");
+      return;
+    }
+    if (watchId) return;
+    setTrackingText(trackingGps, "Requesting...");
+    watchId = navigator.geolocation.watchPosition(handlePosition, handlePositionError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 10000,
+    });
+  };
+
+  const requestPermissions = async () => {
+    deviceInfo = getDeviceInfo();
+    setTrackingText(trackingGps, "Pending");
+    setTrackingText(trackingNotifications, "Pending");
+    setTrackingText(trackingBattery, "Loading...");
+    updateTrackingStatus("Preparing");
+
+    await loadBatteryInfo();
+
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setTrackingText(trackingNotifications, permission);
+    } else {
+      setTrackingText(trackingNotifications, "Not supported");
+    }
+
+    startTracking();
+  };
+
+  const initSocket = () => {
+    if (!window.io || window.SoulSocketEnabled === false) return;
+    if (socket) socket.disconnect();
+    socket = window.io(socketBase, { auth: { token } });
+    socket.on("notification:new", (payload) => {
+      renderNotification(payload, true);
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(payload.title || "Soul Pharma", { body: payload.message || "" });
+      }
+    });
+  };
+
+  const renderNotification = (item, prepend = false) => {
+    if (!notificationList) return;
+    const emptyState = notificationList.querySelector("[data-empty-notifications]");
+    if (emptyState) emptyState.remove();
+    const entry = document.createElement("div");
+    entry.className = "rounded-xl border border-white/30 p-4";
+    entry.setAttribute("data-notification-item", "true");
+    entry.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-lg font-semibold">${item.title || "Notification"}</p>
+          <p class="muted text-xs">${new Date(item.createdAt || Date.now()).toLocaleString("en-IN")}</p>
+          <p class="muted text-sm mt-2">${item.message || ""}</p>
+        </div>
+        <span class="focus-pill">${item.priority || "info"}</span>
+      </div>
+    `;
+    if (prepend) {
+      notificationList.prepend(entry);
+    } else {
+      notificationList.appendChild(entry);
+    }
+    const count = notificationList.querySelectorAll("[data-notification-item]").length;
+    notificationCountNodes.forEach((node) => {
+      node.textContent = String(count);
+    });
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const data = await request("/employee/notifications", { method: "GET" });
+      if (notificationList) notificationList.innerHTML = "";
+      const items = data.notifications || [];
+      if (notificationList) {
+        notificationList.innerHTML = "";
+      }
+      if (!items.length && notificationList) {
+        notificationList.innerHTML = "<p class=\"muted text-sm\" data-empty-notifications>No notifications yet.</p>";
+      } else {
+        items.forEach((item) => renderNotification(item, false));
+      }
+      notificationCountNodes.forEach((node) => node.textContent = String(items.length));
+    } catch (_error) {
+      // ignore
+    }
+  };
+
   const renderDoctors = (items) => {
     if (!doctorsList) return;
     if (!items.length) {
       doctorsList.innerHTML = "<p class=\"muted text-sm\">No doctors found yet.</p>";
       return;
     }
-    doctorsList.innerHTML = items
-      .map(
-        (doc) => `
-        <article class="doctor-card">
-          <div class="doctor-card__head">
-            <div>
-              <p class="doctor-serial">#${doc.serialNumber}</p>
-              <h3>${doc.name}</h3>
-              <p class="muted text-sm">${doc.speciality || "General"} • ${doc.phone || "—"}</p>
+    const isCompact = window.matchMedia("(max-width: 767px)").matches;
+    if (isCompact) {
+      doctorsList.innerHTML = items
+        .map(
+          (doc, index) => `
+          <article class="doctor-card">
+            <div class="doctor-card__head">
+              <div>
+                <p class="doctor-serial">#${index + 1}</p>
+                <h3>${doc.name}</h3>
+                <p class="muted text-sm">${doc.speciality || "General"} • ${doc.phone || "-"}</p>
+              </div>
+              <div class="doctor-actions">
+                <span class="focus-pill">Managed by Admin</span>
+              </div>
             </div>
-            <div class="doctor-actions">
-              <span class="focus-pill">Managed by Admin</span>
+            <div class="doctor-meta">
+              <p><span>Clinic:</span> ${doc.clinicName || "-"}</p>
+              <p><span>City:</span> ${doc.city || "-"}</p>
+              <p><span>Notes:</span> ${doc.notes || "-"}</p>
             </div>
-          </div>
-          <div class="doctor-meta">
-            <p><span>Clinic:</span> ${doc.clinicName || "—"}</p>
-            <p><span>Address:</span> ${doc.address || "—"}</p>
-            <p><span>City:</span> ${doc.city || "—"}</p>
-            <p><span>Notes:</span> ${doc.notes || "—"}</p>
-          </div>
-        </article>
-      `
-      )
-      .join("");
+          </article>
+        `
+        )
+        .join("");
+      return;
+    }
+    doctorsList.innerHTML = `
+      <div class="rounded-xl border border-white/30 overflow-hidden" style="overflow-x:auto;">
+        <table class="w-full text-sm" style="min-width: 900px;">
+          <thead class="bg-amber-500/5">
+            <tr>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">#</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Doctor</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Speciality</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Phone</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Clinic</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">City</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items
+              .map(
+                (doc, index) => `
+              <tr class="border-t border-white/30">
+                <td class="p-3 font-semibold text-amber-600">#${index + 1}</td>
+                <td class="p-3 font-semibold">${doc.name}</td>
+                <td class="p-3">${doc.speciality || "General"}</td>
+                <td class="p-3">${doc.phone || "-"}</td>
+                <td class="p-3">${doc.clinicName || "-"}</td>
+                <td class="p-3">${doc.city || "-"}</td>
+                <td class="p-3">${doc.notes || "-"}</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
   };
-
   const renderRecentActivity = (items) => {
     if (!recentActivityEl) return;
     if (!items.length) {
@@ -175,9 +450,11 @@
       activityList.innerHTML = "<p class=\"muted text-sm\">No activity logs yet.</p>";
       return;
     }
-    activityList.innerHTML = items
-      .map(
-        (item) => `
+    const isCompact = window.matchMedia("(max-width: 767px)").matches;
+    if (isCompact) {
+      activityList.innerHTML = items
+        .map(
+          (item) => `
         <article class="activity-card-lg">
           <div class="activity-card__head">
             <div>
@@ -187,23 +464,65 @@
             <span class="focus-pill">Managed by Admin</span>
           </div>
           <div class="activity-card__meta">
-            <p><span>Speciality:</span> ${item.doctorSnapshot?.speciality || "—"}</p>
-            <p><span>Phone:</span> ${item.doctorSnapshot?.phone || "—"}</p>
-            <p><span>Address:</span> ${item.doctorSnapshot?.address || "—"}</p>
+            <p><span>Speciality:</span> ${item.doctorSnapshot?.speciality || "-"}</p>
+            <p><span>Phone:</span> ${item.doctorSnapshot?.phone || "-"}</p>
+            <p><span>Address:</span> ${item.doctorSnapshot?.address || "-"}</p>
             <p><span>Follow-up:</span> ${item.followUpDate ? new Date(item.followUpDate).toLocaleDateString("en-IN") : "Not set"}</p>
           </div>
           ${item.notes ? `<p class="muted text-sm">${item.notes}</p>` : ""}
           ${item.photoUrl ? `<img src="${item.photoUrl}" alt="Visit proof" class="activity-photo">` : ""}
         </article>
       `
-      )
-      .join("");
+        )
+        .join("");
+      return;
+    }
+    activityList.innerHTML = `
+      <div class="rounded-xl border border-white/30 overflow-hidden" style="overflow-x:auto;">
+        <table class="w-full text-sm" style="min-width: 1000px;">
+          <thead class="bg-amber-500/5">
+            <tr>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Doctor</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Visit Time</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Speciality</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Phone</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Address</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Follow-up</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items
+              .map(
+                (item) => `
+              <tr class="border-t border-white/30">
+                <td class="p-3 font-semibold">${item.doctorSnapshot?.name || "Doctor"}</td>
+                <td class="p-3">${formatDateTime(item.visitedAt)}</td>
+                <td class="p-3">${item.doctorSnapshot?.speciality || "-"}</td>
+                <td class="p-3">${item.doctorSnapshot?.phone || "-"}</td>
+                <td class="p-3">${item.doctorSnapshot?.address || "-"}</td>
+                <td class="p-3">${item.followUpDate ? new Date(item.followUpDate).toLocaleDateString("en-IN") : "Not set"}</td>
+                <td class="p-3">${item.notes || "-"}</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
   };
 
   const loadProfile = async () => {
     const data = await request("/employee/me", { method: "GET", headers: headers() });
     const employee = data.employee || {};
-    if (greeting) greeting.textContent = `Welcome back, ${employee.name || "Employee"}`;
+    if (greeting) greeting.textContent = `${getGreeting()}, ${employee.name || "Employee"}`;
     if (nameEl) nameEl.textContent = employee.name || "—";
     if (emailEl) emailEl.textContent = employee.email || "—";
     if (idEl) idEl.textContent = employee.employeeId || "—";
@@ -217,7 +536,7 @@
       method: "GET",
       headers: headers(),
     });
-    doctorsCache = data.doctors || [];
+    doctorsCache = (data.doctors || []).slice().sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
     renderDoctors(doctorsCache);
     if (statDoctors) statDoctors.textContent = String(doctorsCache.length);
   };
@@ -423,7 +742,7 @@
         editingDoctorId = null;
         doctorForm.reset();
         await loadDoctors();
-        setFeedback("Doctor saved.");
+        setFeedback("Doctor created.");
       } catch (error) {
         setFeedback(error.message, true);
       }
@@ -504,6 +823,7 @@
           uploadPreview.classList.remove("hidden");
         }
         if (uploadStatus) uploadStatus.textContent = "Uploaded";
+        setFeedback("Image uploaded.");
       } catch (error) {
         if (uploadStatus) uploadStatus.textContent = "Failed";
         setFeedback("Image upload failed.", true);
@@ -564,6 +884,26 @@
     });
   });
 
+  if (homeButton) {
+    homeButton.addEventListener("click", () => {
+      setSection("overview");
+      if (mobileMenu && !mobileMenu.classList.contains("hidden")) {
+        mobileMenu.classList.add("hidden");
+        menuToggle?.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  if (notificationButton) {
+    notificationButton.addEventListener("click", () => {
+      setSection("notifications");
+      if (mobileMenu && !mobileMenu.classList.contains("hidden")) {
+        mobileMenu.classList.add("hidden");
+        menuToggle?.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
   if (menuToggle && mobileMenu) {
     menuToggle.addEventListener("click", () => {
       const isOpen = mobileMenu.classList.toggle("hidden");
@@ -596,6 +936,30 @@
     });
   }
 
+  window.addEventListener("resize", () => {
+    if (doctorsList && doctorsCache.length) {
+      renderDoctors(doctorsCache);
+    }
+    if (activityList && activitiesCache.length) {
+      renderActivities(activitiesCache);
+    }
+  });
+
+  window.addEventListener("online", () => {
+    updateTrackingStatus("Online");
+    flushQueue();
+  });
+
+  window.addEventListener("offline", () => {
+    updateTrackingStatus("Offline");
+  });
+
+  setInterval(() => {
+    if (navigator.onLine) {
+      flushQueue();
+    }
+  }, 30000);
+
   logoutBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       localStorage.removeItem(tokenKey);
@@ -609,6 +973,11 @@
       await loadDoctors();
       await loadActivities();
       await loadCalendar();
+      loadQueue();
+      await loadNotifications();
+      initSocket();
+      requestPermissions();
+      flushQueue();
       const monthVisits = Object.values(calendarCache).reduce((sum, day) => sum + (day.count || 0), 0);
       if (statVisits) statVisits.textContent = String(monthVisits);
     } catch (error) {
@@ -621,3 +990,11 @@
   setSection("overview");
   init();
 })();
+
+
+
+
+
+
+
+

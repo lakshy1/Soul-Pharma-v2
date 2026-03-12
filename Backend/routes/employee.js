@@ -4,10 +4,13 @@ const Employee = require("../models/Employee");
 const Doctor = require("../models/Doctor");
 const Activity = require("../models/Activity");
 const Otp = require("../models/Otp");
+const EmployeeLocation = require("../models/EmployeeLocation");
+const Notification = require("../models/Notification");
 const auth = require("../middleware/auth");
 const { hashPassword, verifyPassword, verifyOtp } = require("../utils/password");
-const { nextSequence } = require("../utils/counter");
+const { nextSequence, setSequence } = require("../utils/counter");
 const { configureCloudinary, uploadBuffer } = require("../utils/cloudinary");
+const { getIo } = require("../utils/socket");
 const multer = require("multer");
 
 const router = express.Router();
@@ -221,7 +224,12 @@ router.post("/doctors", auth(["employee"]), async (req, res) => {
     if (!name || !phone) {
       return res.status(400).json({ message: "Doctor name and phone are required" });
     }
-    const serialNumber = await nextSequence(`doctor:${req.user.id}`);
+    const counterKey = `doctor:${req.user.id}`;
+    const currentCount = await Doctor.countDocuments({ createdBy: req.user.id });
+    if (currentCount === 0) {
+      await setSequence(counterKey, 0);
+    }
+    const serialNumber = await nextSequence(counterKey);
     const doctor = await Doctor.create({
       serialNumber,
       name,
@@ -355,6 +363,74 @@ router.post("/uploads", auth(["employee"]), upload.single("file"), async (req, r
     return res.json({ url: result.secure_url, publicId: result.public_id });
   } catch (error) {
     return res.status(500).json({ message: "Unable to upload image", detail: error?.message });
+  }
+});
+
+router.post("/locations", auth(["employee"]), async (req, res) => {
+  try {
+    const {
+      latitude,
+      longitude,
+      accuracy,
+      altitude,
+      speed,
+      heading,
+      capturedAt,
+      device,
+      battery,
+      network,
+      source,
+    } = req.body;
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      return res.status(400).json({ message: "Latitude and longitude are required" });
+    }
+
+    const location = await EmployeeLocation.create({
+      employee: req.user.id,
+      latitude,
+      longitude,
+      accuracy,
+      altitude,
+      speed,
+      heading,
+      capturedAt: capturedAt ? new Date(capturedAt) : undefined,
+      device,
+      battery,
+      network,
+      source: source || "watchPosition",
+    });
+
+    const io = getIo();
+    if (io) {
+      io.to("admins").emit("location:update", {
+        id: location._id,
+        employeeId: req.user.id,
+        employeeName: req.user.name,
+        latitude,
+        longitude,
+        accuracy,
+        capturedAt: location.capturedAt,
+        receivedAt: location.receivedAt,
+        battery,
+      });
+    }
+
+    return res.status(201).json({ id: location._id });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to store location" });
+  }
+});
+
+router.get("/notifications", auth(["employee"]), async (req, res) => {
+  try {
+    const notifications = await Notification.find({
+      $or: [{ employee: req.user.id }, { employee: { $exists: false } }, { employee: null }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(100);
+    return res.json({ notifications });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch notifications" });
   }
 });
 
