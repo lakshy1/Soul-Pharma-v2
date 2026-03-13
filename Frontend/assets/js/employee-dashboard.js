@@ -119,6 +119,13 @@
     activityTime.value = local;
   };
 
+  const toIsoFromLocalInput = (value) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toISOString();
+  };
+
   const request = async (path, options = {}) => {
     const response = await fetch(`${apiBase}${path}`, {
       headers: { "Content-Type": "application/json", ...headers(), ...(options.headers || {}) },
@@ -844,6 +851,7 @@
         setNow();
         payload.visitedAt = activityTime?.value || "";
       }
+      payload.visitedAt = toIsoFromLocalInput(payload.visitedAt);
       try {
         await request("/employee/activities", {
           method: "POST",
