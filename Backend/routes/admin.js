@@ -13,12 +13,15 @@ const Expense = require("../models/Expense");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+const multer = require("multer");
+const XLSX = require("xlsx");
 const auth = require("../middleware/auth");
 const { hashPassword, verifyPassword } = require("../utils/password");
 const { nextSequence, setSequence } = require("../utils/counter");
 const { getIo } = require("../utils/socket");
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 const reindexDoctorSerials = async (employeeId) => {
   const doctors = await Doctor.find({ createdBy: employeeId }).sort({ createdAt: 1 });
@@ -206,6 +209,30 @@ router.get("/expenses", auth(["admin"]), async (req, res) => {
     return res.json({ expenses });
   } catch (error) {
     return res.status(500).json({ message: "Unable to fetch expenses" });
+  }
+});
+
+router.get("/expenses/summary", auth(["admin"]), async (req, res) => {
+  try {
+    const months = Math.min(Number(req.query.months || 6), 24);
+    const now = new Date();
+    const monthKeys = Array.from({ length: months })
+      .map((_, idx) => {
+        const date = new Date(now.getFullYear(), now.getMonth() - (months - 1 - idx), 1);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      });
+    const summary = await Expense.aggregate([
+      { $match: { month: { $in: monthKeys } } },
+      { $group: { _id: "$month", total: { $sum: "$monthlyExpenses" } } },
+    ]);
+    const summaryMap = new Map(summary.map((item) => [item._id, item.total]));
+    const rows = monthKeys.map((month) => ({
+      month,
+      total: summaryMap.get(month) || 0,
+    }));
+    return res.json({ rows });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch expense summary" });
   }
 });
 
@@ -569,6 +596,98 @@ router.post("/doctors", auth(["admin"]), async (req, res) => {
     return res.status(201).json({ doctor });
   } catch (error) {
     return res.status(500).json({ message: "Unable to create doctor" });
+  }
+});
+
+router.get("/doctors/template", auth(["admin"]), async (_req, res) => {
+  try {
+    const headers = [
+      {
+        name: "",
+        speciality: "",
+        phone: "",
+        email: "",
+        clinicName: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+        notes: "",
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Doctors");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=\"doctors-template.xlsx\"");
+    return res.send(buffer);
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to generate template" });
+  }
+});
+
+router.post("/doctors/import", auth(["admin"]), upload.single("file"), async (req, res) => {
+  try {
+    const employeeId = req.body.employeeId;
+    if (!employeeId) {
+      return res.status(400).json({ message: "Employee is required." });
+    }
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: "File is required." });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+      return res.status(400).json({ message: "No worksheet found in file." });
+    }
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+    if (!rows.length) {
+      return res.status(400).json({ message: "File is empty." });
+    }
+
+    const counterKey = `doctor:${employeeId}`;
+    const currentCount = await Doctor.countDocuments({ createdBy: employeeId });
+    if (currentCount === 0) {
+      await setSequence(counterKey, 0);
+    }
+
+    const created = [];
+    let skipped = 0;
+    for (const row of rows) {
+      const name = String(row.name || row.Name || "").trim();
+      const phone = String(row.phone || row.Phone || "").trim();
+      if (!name || !phone) {
+        skipped += 1;
+        continue;
+      }
+      const serialNumber = await nextSequence(counterKey);
+      created.push({
+        serialNumber,
+        name,
+        speciality: String(row.speciality || row.Speciality || "").trim(),
+        phone,
+        email: String(row.email || row.Email || "").trim(),
+        clinicName: String(row.clinicName || row.ClinicName || row.Clinic || "").trim(),
+        address: String(row.address || row.Address || "").trim(),
+        city: String(row.city || row.City || "").trim(),
+        state: String(row.state || row.State || "").trim(),
+        pincode: String(row.pincode || row.Pincode || "").trim(),
+        notes: String(row.notes || row.Notes || "").trim(),
+        createdBy: employeeId,
+      });
+    }
+
+    if (!created.length) {
+      return res.status(400).json({ message: "No valid rows found." });
+    }
+
+    await Doctor.insertMany(created, { ordered: false });
+    return res.status(201).json({ created: created.length, skipped });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to import doctors" });
   }
 });
 

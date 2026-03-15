@@ -67,6 +67,9 @@
   const doctorEditIndicator = document.querySelector("[data-admin-doctor-edit-indicator]");
   const doctorSubmitBtn = document.querySelector("[data-admin-doctor-submit]");
   const doctorCancelBtn = document.querySelector("[data-admin-doctor-cancel]");
+  const doctorImportForm = document.querySelector("[data-doctor-import-form]");
+  const doctorImportEmployeeSelect = document.querySelector("[data-doctor-import-employee]");
+  const doctorTemplateDownload = document.querySelector("[data-doctor-template-download]");
 
   const activityList = document.querySelector("[data-admin-activity-list]");
   const activityEmployeeSelect = document.querySelector("[data-admin-activity-employee]");
@@ -114,6 +117,7 @@
   let filteredForms = [];
   let cachedDoctors = [];
   let cachedActivities = [];
+  let cachedOverviewActivities = [];
   let cachedLiveLocations = [];
   let cachedLocationHistory = [];
   let cachedNotifications = [];
@@ -121,6 +125,7 @@
   let cachedExpensesByMonth = {};
   let cachedExpenseHistory = {};
   let activeExpenseHistoryEmployee = null;
+  let cachedExpensesSummary = [];
   let locationMap = null;
   let locationMarkers = new Map();
   let locationTrails = new Map();
@@ -1982,7 +1987,7 @@
       svg.selectAll("*").remove();
       const width = svg.node().clientWidth || 320;
       const height = svg.node().clientHeight || 240;
-      const padding = { top: 16, right: 16, bottom: 28, left: 40 };
+      const padding = { top: 14, right: 12, bottom: 28, left: 52 };
       svg.attr("viewBox", `0 0 ${width} ${height}`);
 
       const x = d3
@@ -2086,12 +2091,70 @@
     }, {});
     const deptEntries = Object.values(deptMap).slice(0, 6);
 
+    const activityDays = 7;
+    const today = new Date();
+    const dayBuckets = Array.from({ length: activityDays }).map((_, idx) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (activityDays - 1 - idx));
+      const key = toLocalKey(date);
+      const label = date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+      return { key, label };
+    });
+    const dayIndex = new Map(dayBuckets.map((d, i) => [d.key, i]));
+    const employeeActivityCounts = cachedOverviewActivities.reduce((acc, item) => {
+      const empId = item.employee;
+      const key = item.visitedAt ? toLocalKey(item.visitedAt) : "";
+      if (!empId || !key || !dayIndex.has(key)) return acc;
+      if (!acc[empId]) acc[empId] = Array(activityDays).fill(0);
+      acc[empId][dayIndex.get(key)] += 1;
+      return acc;
+    }, {});
+    const topEmployeeIds = Object.keys(employeeActivityCounts);
+    const activityEntries = dayBuckets.map((day, idx) => {
+      const row = { label: day.label };
+      topEmployeeIds.forEach((empId) => {
+        row[empId] = employeeActivityCounts[empId]?.[idx] || 0;
+      });
+      return row;
+    });
+    const activityKeys = topEmployeeIds;
+    const activityPalette = ["#fb7185", "#60a5fa", "#34d399", "#f59e0b", "#a78bfa", "#38bdf8", "#22c55e", "#f97316"];
+    const activityLabels = topEmployeeIds.map(
+      (empId) => cachedEmployees.find((emp) => emp._id === empId)?.name?.split(" ")[0] || "Emp"
+    );
+
+    const activityEntriesWithLabels = activityEntries.map((entry) => {
+      const mapped = { label: entry.label };
+      activityKeys.forEach((key, idx) => {
+        mapped[activityLabels[idx]] = entry[key] || 0;
+      });
+      return mapped;
+    });
+
+    const expenseMonthlyEntries = cachedExpensesSummary.map((item) => {
+      const date = new Date(`${item.month}-01T00:00:00`);
+      const label = Number.isNaN(date.getTime())
+        ? item.month
+        : date.toLocaleDateString("en-IN", { month: "short" });
+      return { label, value: Number(item.total) || 0 };
+    });
+
     renderPie("employees", employeesByStatus, ["#fb7185", "#f59e0b", "#38bdf8"]);
     renderBars("news", newsByCategory, "#60a5fa");
     renderBars("focus", focusCount, "#34d399");
     renderPie("forms", formsByTopic, ["#a78bfa", "#f97316", "#22c55e", "#38bdf8"]);
     renderLine("forms-timeline", timeline, "#f97316");
     renderStackedBars("employees-dept", deptEntries, ["active", "inactive"], ["#22c55e", "#fb7185"]);
+    if (activityEntriesWithLabels.length) {
+      renderStackedBars("activities-daily", activityEntriesWithLabels, activityLabels, activityPalette);
+    } else {
+      renderBars("activities-daily", [{ label: "No data", value: 0 }], "#cbd5f5");
+    }
+    if (expenseMonthlyEntries.length) {
+      renderBars("expenses-monthly", expenseMonthlyEntries, "#fb7185");
+    } else {
+      renderBars("expenses-monthly", [{ label: "No data", value: 0 }], "#cbd5f5");
+    }
   };
 
   const setupThreeChart = () => {
@@ -2187,8 +2250,46 @@
         notificationEmployeeSelect.appendChild(opt);
       });
     }
+    if (doctorImportEmployeeSelect) {
+      doctorImportEmployeeSelect.innerHTML = "<option value=\"\">Select employee</option>";
+      cachedEmployees.forEach((emp) => {
+        const opt = document.createElement("option");
+        opt.value = emp._id;
+        opt.textContent = emp.name;
+        doctorImportEmployeeSelect.appendChild(opt);
+      });
+    }
     renderCharts();
     renderExpensesSection();
+  };
+
+  const toLocalKey = (dateValue) => {
+    const date = new Date(dateValue);
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  };
+
+  const loadOverviewActivities = async () => {
+    const days = 7;
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - (days - 1));
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    const params = new URLSearchParams({
+      from: start.toISOString(),
+      to: end.toISOString(),
+    });
+    const data = await request(`/admin/activities?${params.toString()}`);
+    cachedOverviewActivities = data.activities || [];
+    renderCharts();
+  };
+
+  const loadExpensesSummary = async () => {
+    const data = await request("/admin/expenses/summary?months=6");
+    cachedExpensesSummary = data.rows || [];
+    renderCharts();
   };
 
   const loadExpenses = async () => {
@@ -2299,6 +2400,8 @@
       loadLiveLocations(),
       loadNotifications(),
       loadExpenses(),
+      loadOverviewActivities(),
+      loadExpensesSummary(),
     ]);
     renderCharts();
   };
@@ -2637,6 +2740,8 @@
         if (target === "overview") {
           initLocationMap();
           loadLiveLocations().catch(() => setFeedback("Unable to load live locations.", true));
+          loadOverviewActivities().catch(() => setFeedback("Unable to load activity chart.", true));
+          loadExpensesSummary().catch(() => setFeedback("Unable to load expense chart.", true));
         }
         if (target === "expenses") {
           loadExpenses().catch(() => setFeedback("Unable to load expenses.", true));
@@ -2687,6 +2792,63 @@
           exportDoctorsCsv();
         }
       });
+    });
+  }
+  if (doctorTemplateDownload) {
+    doctorTemplateDownload.addEventListener("click", async () => {
+      try {
+        const response = await fetch(`${apiBase}/admin/doctors/template`, {
+          headers: {
+            ...authHeaders(),
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Unable to download template");
+        }
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "doctors-template.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+      } catch (_error) {
+        setFeedback("Unable to download template.", true);
+      }
+    });
+  }
+  if (doctorImportForm) {
+    doctorImportForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(doctorImportForm);
+      const employeeId = formData.get("employeeId");
+      const file = formData.get("file");
+      if (!employeeId || !file || !(file instanceof File) || !file.size) {
+        setFeedback("Select employee and file to upload.", true);
+        return;
+      }
+      try {
+        const response = await fetch(`${apiBase}/admin/doctors/import`, {
+          method: "POST",
+          headers: {
+            ...authHeaders(),
+          },
+          body: formData,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.message || "Upload failed");
+        }
+        setFeedback(`Imported ${data.created || 0} doctors. Skipped ${data.skipped || 0}.`);
+        doctorImportForm.reset();
+        if (doctorImportEmployeeSelect) {
+          doctorImportEmployeeSelect.value = "";
+        }
+        await loadDoctors();
+      } catch (error) {
+        setFeedback(error.message || "Unable to import doctors.", true);
+      }
     });
   }
   if (activityEmployeeSelect) {

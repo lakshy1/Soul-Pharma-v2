@@ -98,6 +98,7 @@
     body[data-page="admin"] [data-admin-section="overview"] [data-live-locations] {
       display: grid;
       gap: 1rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     body[data-page="admin"] [data-admin-section="overview"] [data-live-locations] > div {
       border-radius: 20px;
@@ -525,6 +526,9 @@
       body[data-page="admin"] .route-pill--sync {
         justify-content: space-between;
       }
+      body[data-page="admin"] [data-admin-section="overview"] [data-live-locations] {
+        grid-template-columns: 1fr;
+      }
     }
     body[data-page="admin"][data-theme="dark"] {
       color: #e2e8f0;
@@ -788,6 +792,14 @@
               <svg class="chart-canvas" data-chart="employees-dept"></svg>
             </div>
             <div class="chart-card">
+              <div class="chart-title">Daily Activity Calls</div>
+              <svg class="chart-canvas" data-chart="activities-daily"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Monthly Expenses (Total)</div>
+              <svg class="chart-canvas" data-chart="expenses-monthly"></svg>
+            </div>
+            <div class="chart-card">
               <div class="chart-title">3D Activity Node</div>
               <canvas class="chart-3d" data-chart-3d></canvas>
             </div>
@@ -945,6 +957,26 @@
         <section class="glass-card" data-admin-section="doctors">
           <h2 class="text-2xl font-bold">Doctors</h2>
           <p class="muted mt-2 text-sm">Manage doctors created by employees.</p>
+          <div class="mt-4 rounded-xl border border-white/30 bg-white/60 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500">Bulk Upload</p>
+                <h3 class="text-lg font-semibold">Import Doctors via Excel/CSV</h3>
+                <p class="muted text-sm">Select an employee and upload a formatted sheet to add doctors.</p>
+              </div>
+              <button type="button" class="btn-secondary !px-4 !py-2" data-doctor-template-download>Download Template</button>
+            </div>
+            <form class="mt-4 grid gap-3" data-doctor-import-form>
+              <div class="grid gap-3 md:grid-cols-3">
+                <select class="form-select" name="employeeId" data-doctor-import-employee>
+                  <option value="">Select employee</option>
+                </select>
+                <input type="file" class="form-input" name="file" accept=".csv,.xlsx">
+                <button type="submit" class="btn-brand !px-4 !py-2">Upload Doctors</button>
+              </div>
+              <p class="muted text-xs">Required columns: name, phone. Optional: speciality, email, clinicName, address, city, state, pincode, notes.</p>
+            </form>
+          </div>
           <div class="mt-4 flex flex-wrap gap-3">
             <select class="form-select" data-admin-doctor-employee>
               <option value="">All Employees</option>
