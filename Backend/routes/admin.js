@@ -215,12 +215,20 @@ router.get("/expenses", auth(["admin"]), async (req, res) => {
 router.get("/expenses/summary", auth(["admin"]), async (req, res) => {
   try {
     const months = Math.min(Number(req.query.months || 6), 24);
+    const startMonth = Math.min(Math.max(Number(req.query.startMonth || 0), 0), 12);
     const now = new Date();
-    const monthKeys = Array.from({ length: months })
-      .map((_, idx) => {
-        const date = new Date(now.getFullYear(), now.getMonth() - (months - 1 - idx), 1);
+    let monthKeys = Array.from({ length: months }).map((_, idx) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (months - 1 - idx), 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    });
+    if (startMonth >= 1 && startMonth <= 12) {
+      const currentYear = now.getFullYear();
+      const startDate = new Date(currentYear, startMonth - 1, 1);
+      monthKeys = Array.from({ length: months }).map((_, idx) => {
+        const date = new Date(startDate.getFullYear(), startDate.getMonth() + idx, 1);
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       });
+    }
     const summary = await Expense.aggregate([
       { $match: { month: { $in: monthKeys } } },
       { $group: { _id: "$month", total: { $sum: { $add: ["$fixedSalary", "$monthlyExpenses"] } } } },

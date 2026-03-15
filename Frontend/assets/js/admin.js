@@ -1873,7 +1873,10 @@
       svg.selectAll("*").remove();
       const width = svg.node().clientWidth || 320;
       const height = svg.node().clientHeight || 240;
-      const padding = { top: 16, right: 12, bottom: 28, left: 36 };
+      const padding =
+        selector === "expenses-monthly"
+          ? { top: 12, right: 8, bottom: 40, left: 68 }
+          : { top: 16, right: 12, bottom: 28, left: 36 };
       svg.attr("viewBox", `0 0 ${width} ${height}`);
 
       const x = d3
@@ -2135,7 +2138,7 @@
       const date = new Date(`${item.month}-01T00:00:00`);
       const label = Number.isNaN(date.getTime())
         ? item.month
-        : date.toLocaleDateString("en-IN", { month: "short" });
+        : date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
       return { label, value: Number(item.total) || 0 };
     });
 
@@ -2246,7 +2249,7 @@
   };
 
   const loadExpensesSummary = async () => {
-    const data = await request("/admin/expenses/summary?months=6");
+    const data = await request("/admin/expenses/summary?months=12&startMonth=3");
     cachedExpensesSummary = data.rows || [];
     renderCharts();
   };
