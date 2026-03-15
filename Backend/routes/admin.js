@@ -9,6 +9,10 @@ const Doctor = require("../models/Doctor");
 const Activity = require("../models/Activity");
 const EmployeeLocation = require("../models/EmployeeLocation");
 const Notification = require("../models/Notification");
+const Expense = require("../models/Expense");
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
 const auth = require("../middleware/auth");
 const { hashPassword, verifyPassword } = require("../utils/password");
 const { nextSequence, setSequence } = require("../utils/counter");
@@ -189,6 +193,237 @@ router.delete("/employees/:id", auth(["admin"]), async (req, res) => {
     return res.json({ message: "Employee deleted" });
   } catch (error) {
     return res.status(500).json({ message: "Unable to delete employee" });
+  }
+});
+
+router.get("/expenses", auth(["admin"]), async (req, res) => {
+  try {
+    const month = (req.query.month || "").trim();
+    if (!month) {
+      return res.status(400).json({ message: "Month is required (YYYY-MM)." });
+    }
+    const expenses = await Expense.find({ month }).sort({ updatedAt: -1 });
+    return res.json({ expenses });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch expenses" });
+  }
+});
+
+router.post("/expenses", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId, month, fixedSalary, monthlyExpenses } = req.body;
+    if (!employeeId || !month) {
+      return res.status(400).json({ message: "Employee and month are required." });
+    }
+    const payload = {
+      employee: employeeId,
+      month,
+      fixedSalary: Number(fixedSalary) || 0,
+      monthlyExpenses: Number(monthlyExpenses) || 0,
+      updatedBy: req.user?.id,
+    };
+    const expense = await Expense.findOneAndUpdate(
+      { employee: employeeId, month },
+      { $set: payload },
+      { new: true, upsert: true }
+    );
+    return res.status(201).json({ expense });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to save expense" });
+  }
+});
+
+router.post("/expenses/bulk", auth(["admin"]), async (req, res) => {
+  try {
+    const { month, items } = req.body;
+    if (!month || !Array.isArray(items)) {
+      return res.status(400).json({ message: "Month and items are required." });
+    }
+    const ops = items
+      .filter((item) => item?.employeeId)
+      .map((item) => ({
+        updateOne: {
+          filter: { employee: item.employeeId, month },
+          update: {
+            $set: {
+              employee: item.employeeId,
+              month,
+              fixedSalary: Number(item.fixedSalary) || 0,
+              monthlyExpenses: Number(item.monthlyExpenses) || 0,
+              updatedBy: req.user?.id,
+            },
+          },
+          upsert: true,
+        },
+      }));
+    if (!ops.length) {
+      return res.status(400).json({ message: "No valid items to update." });
+    }
+    await Expense.bulkWrite(ops, { ordered: false });
+    return res.json({ updated: ops.length });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to save expenses" });
+  }
+});
+
+router.get("/expenses/history/:employeeId", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const limit = Math.min(Number(req.query.limit || 12), 24);
+    const history = await Expense.find({ employee: employeeId })
+      .sort({ month: -1 })
+      .limit(limit);
+    return res.json({ history });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch expense history" });
+  }
+});
+
+router.get("/expenses/report/pdf", auth(["admin"]), async (req, res) => {
+  try {
+    const month = (req.query.month || "").trim();
+    if (!month) {
+      return res.status(400).json({ message: "Month is required (YYYY-MM)." });
+    }
+    const employees = await Employee.find().sort({ name: 1 });
+    const expenses = await Expense.find({ month });
+    const expenseMap = new Map(expenses.map((item) => [String(item.employee), item]));
+
+    const formatCurrency = (value) =>
+      new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(
+        Number(value) || 0
+      );
+
+    const totals = employees.reduce(
+      (acc, emp) => {
+        const record = expenseMap.get(String(emp._id));
+        const fixedSalary = record ? Number(record.fixedSalary) || 0 : Number(emp.currentSalary) || 0;
+        const monthlyExpenses = record ? Number(record.monthlyExpenses) || 0 : 0;
+        acc.salary += fixedSalary;
+        acc.expenses += monthlyExpenses;
+        return acc;
+      },
+      { salary: 0, expenses: 0 }
+    );
+    const grandTotal = totals.salary + totals.expenses;
+    const maxValue = Math.max(totals.salary, totals.expenses, grandTotal, 1);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="expenses-report-${month}.pdf"`);
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    doc.pipe(res);
+
+    const brandColor = "#d62839";
+    const logoPath = path.resolve(__dirname, "..", "..", "Frontend", "Images", "Logo.png");
+    const headerTop = doc.y;
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 40, headerTop, { width: 90, height: 50 });
+    }
+    doc
+      .fontSize(18)
+      .fillColor(brandColor)
+      .text("Soul Pharma", 140, headerTop + 6, { align: "left" });
+    doc
+      .fontSize(11)
+      .fillColor("#475569")
+      .text("Monthly Expense Report", 140, headerTop + 28, { align: "left" });
+    doc.moveDown(2.4);
+    doc.fontSize(11).fillColor("#475569").text(`Month: ${month}`);
+    doc.moveDown(0.8);
+
+    doc.fontSize(12).fillColor("#0f172a").text(`Salary Total: ${formatCurrency(totals.salary)}`);
+    doc.text(`Expenses Total: ${formatCurrency(totals.expenses)}`);
+    doc.text(`Grand Total: ${formatCurrency(grandTotal)}`);
+    doc.moveDown(0.8);
+
+    const chartX = 40;
+    const chartY = doc.y;
+    const chartWidth = 260;
+    const chartHeight = 10;
+    const drawBar = (label, value, color, offsetY) => {
+      doc.fontSize(9).fillColor("#64748b").text(label, chartX, offsetY - 2);
+      doc
+        .rect(chartX + 70, offsetY - chartHeight, chartWidth, chartHeight)
+        .stroke("#e2e8f0");
+      doc
+        .rect(chartX + 70, offsetY - chartHeight, (value / maxValue) * chartWidth, chartHeight)
+        .fill(color);
+    };
+    drawBar("Salary", totals.salary, "#f97316", chartY);
+    drawBar("Expenses", totals.expenses, "#38bdf8", chartY + 16);
+    drawBar("Total", grandTotal, "#22c55e", chartY + 32);
+    doc.moveDown(2.6);
+
+    let cursorY = doc.y;
+    const columns = [
+      { label: "#", width: 24 },
+      { label: "Employee", width: 150 },
+      { label: "Area", width: 110 },
+      { label: "Fixed Salary", width: 90 },
+      { label: "Monthly Expenses", width: 100 },
+      { label: "Total", width: 80 },
+    ];
+    const tableX = 40;
+    const rowHeight = 18;
+
+    const drawTableHeader = () => {
+      doc.rect(tableX, cursorY, columns.reduce((sum, c) => sum + c.width, 0), rowHeight).fill("#f1f5f9");
+      doc.fontSize(9).fillColor("#0f172a");
+      let x = tableX + 4;
+      columns.forEach((col) => {
+        doc.text(col.label, x, cursorY + 4, { width: col.width - 6 });
+        x += col.width;
+      });
+      cursorY += rowHeight;
+    };
+
+    drawTableHeader();
+    doc.fontSize(9).fillColor("#0f172a");
+
+    employees.forEach((emp, index) => {
+      const record = expenseMap.get(String(emp._id));
+      const fixedSalary = record ? Number(record.fixedSalary) || 0 : Number(emp.currentSalary) || 0;
+      const monthlyExpenses = record ? Number(record.monthlyExpenses) || 0 : 0;
+      const total = fixedSalary + monthlyExpenses;
+
+      if (cursorY + rowHeight > doc.page.height - 40) {
+        doc.addPage();
+        cursorY = 40;
+        drawTableHeader();
+      }
+
+      let x = tableX + 4;
+      doc.text(String(index + 1), x, cursorY + 4, { width: columns[0].width - 6 });
+      x += columns[0].width;
+      doc.text(emp.name || "Employee", x, cursorY + 4, { width: columns[1].width - 6 });
+      x += columns[1].width;
+      doc.text(emp.territoryName || "-", x, cursorY + 4, { width: columns[2].width - 6 });
+      x += columns[2].width;
+      doc.text(formatCurrency(fixedSalary), x, cursorY + 4, { width: columns[3].width - 6 });
+      x += columns[3].width;
+      doc.text(formatCurrency(monthlyExpenses), x, cursorY + 4, { width: columns[4].width - 6 });
+      x += columns[4].width;
+      doc.text(formatCurrency(total), x, cursorY + 4, { width: columns[5].width - 6 });
+      cursorY += rowHeight;
+    });
+
+    const footerY = doc.page.height - 70;
+    doc
+      .moveTo(40, footerY)
+      .lineTo(240, footerY)
+      .strokeColor("#cbd5f5")
+      .stroke();
+    doc
+      .moveTo(320, footerY)
+      .lineTo(520, footerY)
+      .strokeColor("#cbd5f5")
+      .stroke();
+    doc.fontSize(9).fillColor("#64748b").text("Prepared By", 40, footerY + 6);
+    doc.fontSize(9).fillColor("#64748b").text("Authorized Signature", 320, footerY + 6);
+
+    doc.end();
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to generate expense report" });
   }
 });
 

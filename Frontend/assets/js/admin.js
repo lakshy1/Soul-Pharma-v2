@@ -86,6 +86,23 @@
   const formClear = document.querySelector("[data-form-clear]");
   const formExport = document.querySelector("[data-form-export]");
 
+  const expensesTableBody = document.querySelector("[data-expenses-table]");
+  const expensesMonthInput = document.querySelector("[data-expenses-month]");
+  const expensesExportButtons = [...document.querySelectorAll("[data-expenses-export]")];
+  const expensesPrintButton = document.querySelector("[data-expenses-print]");
+  const expensesSummarySalary = document.querySelector("[data-expense-summary=\"salary\"]");
+  const expensesSummaryExpenses = document.querySelector("[data-expense-summary=\"expenses\"]");
+  const expensesSummaryTotal = document.querySelector("[data-expense-summary=\"total\"]");
+  const expensesCharts = {
+    salary: document.querySelector("[data-expense-chart=\"salary\"]"),
+    expenses: document.querySelector("[data-expense-chart=\"expenses\"]"),
+    total: document.querySelector("[data-expense-chart=\"total\"]"),
+  };
+  const expensesHistoryTitle = document.querySelector("[data-expense-history-title]");
+  const expensesHistoryMonths = document.querySelector("[data-expense-history-months]");
+  const expensesHistoryChart = document.querySelector("[data-expense-history-chart]");
+  const expensesHistoryTable = document.querySelector("[data-expense-history-table]");
+
   let editingEmployeeId = null;
   let editingNewsId = null;
   let editingFocusId = null;
@@ -100,6 +117,10 @@
   let cachedLiveLocations = [];
   let cachedLocationHistory = [];
   let cachedNotifications = [];
+  let cachedExpenses = {};
+  let cachedExpensesByMonth = {};
+  let cachedExpenseHistory = {};
+  let activeExpenseHistoryEmployee = null;
   let locationMap = null;
   let locationMarkers = new Map();
   let locationTrails = new Map();
@@ -113,6 +134,7 @@
   const routeDistanceCache = new Map();
   let locationHistoryTimer = null;
   let socket = null;
+  const expenseSaveTimers = new Map();
 
   const setFeedback = (message, isError = false) => {
     if (!feedback) return;
@@ -142,6 +164,68 @@
     doctorEditIndicator.classList.add("hidden");
     doctorSubmitBtn.textContent = "Update Doctor";
     doctorCancelBtn.classList.add("hidden");
+  };
+
+  const formatCurrency = (value) => {
+    const safeValue = Number.isFinite(value) ? value : 0;
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0
+    }).format(safeValue);
+  };
+
+  const getActiveMonthKey = () => {
+    if (expensesMonthInput) {
+      if (!expensesMonthInput.value) {
+        const now = new Date();
+        const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        expensesMonthInput.value = key;
+        return key;
+      }
+      return expensesMonthInput.value;
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const getMonthLabel = (monthKey) => {
+    if (!monthKey) return "";
+    const date = new Date(`${monthKey}-01T00:00:00`);
+    if (Number.isNaN(date.getTime())) return monthKey;
+    return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  };
+
+  const ensureExpenseDefaults = (employees, monthKey) => {
+    if (!cachedExpensesByMonth[monthKey]) {
+      cachedExpensesByMonth[monthKey] = {};
+    }
+    const monthData = cachedExpensesByMonth[monthKey];
+    employees.forEach((emp) => {
+      if (!monthData[emp._id]) {
+        monthData[emp._id] = {
+          fixedSalary: Number(emp.currentSalary) || 0,
+          monthlyExpenses: 0,
+        };
+      } else {
+        monthData[emp._id].fixedSalary = Number(monthData[emp._id].fixedSalary) || 0;
+        monthData[emp._id].monthlyExpenses = Number(monthData[emp._id].monthlyExpenses) || 0;
+      }
+    });
+    cachedExpenses = monthData;
+    return monthData;
+  };
+
+  const updateExpenseEntry = (employeeId, field, value) => {
+    const monthKey = getActiveMonthKey();
+    if (!cachedExpensesByMonth[monthKey]) {
+      cachedExpensesByMonth[monthKey] = {};
+    }
+    if (!cachedExpensesByMonth[monthKey][employeeId]) {
+      cachedExpensesByMonth[monthKey][employeeId] = { fixedSalary: 0, monthlyExpenses: 0 };
+    }
+    cachedExpensesByMonth[monthKey][employeeId][field] = Number(value) || 0;
+    cachedExpenses = cachedExpensesByMonth[monthKey];
   };
 
   const getToken = () => localStorage.getItem(tokenKey);
@@ -355,6 +439,417 @@
       </div>
     `;
   };
+
+  const renderExpensesTable = () => {
+    if (!expensesTableBody) return;
+    if (!cachedEmployees.length) {
+      expensesTableBody.innerHTML = "<tr><td class=\"p-4 muted\" colspan=\"7\">No employees found.</td></tr>";
+      if (expensesSummarySalary) expensesSummarySalary.textContent = formatCurrency(0);
+      if (expensesSummaryExpenses) expensesSummaryExpenses.textContent = formatCurrency(0);
+      if (expensesSummaryTotal) expensesSummaryTotal.textContent = formatCurrency(0);
+      return;
+    }
+    const monthKey = getActiveMonthKey();
+    const monthData = ensureExpenseDefaults(cachedEmployees, monthKey);
+    let totalSalary = 0;
+    let totalExpenses = 0;
+
+    const rows = cachedEmployees.map((emp, idx) => {
+      const record = monthData[emp._id] || { fixedSalary: 0, monthlyExpenses: 0 };
+      const fixedSalary = Number(record.fixedSalary) || 0;
+      const monthlyExpenses = Number(record.monthlyExpenses) || 0;
+      const rowTotal = fixedSalary + monthlyExpenses;
+      totalSalary += fixedSalary;
+      totalExpenses += monthlyExpenses;
+      return `
+        <tr class="border-t border-white/20">
+          <td class="p-3 font-semibold">${idx + 1}</td>
+          <td class="p-3">
+            <div class="font-semibold">${emp.name || "Employee"}</div>
+            <div class="muted text-xs">${emp.designation || "Team"}${emp.employeeId ? ` • ${emp.employeeId}` : ""}</div>
+          </td>
+          <td class="p-3">${emp.territoryName || "—"}</td>
+          <td class="p-3">
+            <input type="number" min="0" step="100" class="expenses-input" data-expense-input data-expense-field="fixedSalary" data-expense-employee="${emp._id}" value="${fixedSalary}">
+          </td>
+          <td class="p-3">
+            <input type="number" min="0" step="100" class="expenses-input" data-expense-input data-expense-field="monthlyExpenses" data-expense-employee="${emp._id}" value="${monthlyExpenses}">
+          </td>
+          <td class="p-3 font-semibold" data-expense-row-total="${emp._id}">${formatCurrency(rowTotal)}</td>
+          <td class="p-3">
+            <button type="button" class="expenses-history-btn" data-expense-history="${emp._id}">History</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    const grandTotal = totalSalary + totalExpenses;
+    const totalRow = `
+      <tr class="border-t border-white/30 bg-rose-500/10 font-semibold">
+        <td class="p-3" colspan="3">Totals</td>
+        <td class="p-3" data-expense-total="salary">${formatCurrency(totalSalary)}</td>
+        <td class="p-3" data-expense-total="expenses">${formatCurrency(totalExpenses)}</td>
+        <td class="p-3" data-expense-total="total">${formatCurrency(grandTotal)}</td>
+        <td class="p-3"></td>
+      </tr>
+    `;
+
+    expensesTableBody.innerHTML = rows + totalRow;
+    if (expensesSummarySalary) expensesSummarySalary.textContent = formatCurrency(totalSalary);
+    if (expensesSummaryExpenses) expensesSummaryExpenses.textContent = formatCurrency(totalExpenses);
+    if (expensesSummaryTotal) expensesSummaryTotal.textContent = formatCurrency(grandTotal);
+  };
+
+  const renderExpensesCharts = () => {
+    if (!window.d3 || !cachedEmployees.length) return;
+    const d3 = window.d3;
+    if (!expensesCharts.salary && !expensesCharts.expenses && !expensesCharts.total) return;
+    const monthKey = getActiveMonthKey();
+    const monthData = ensureExpenseDefaults(cachedEmployees, monthKey);
+
+    const buildEntries = (field) =>
+      cachedEmployees.map((emp) => {
+        const entry = monthData[emp._id] || { fixedSalary: 0, monthlyExpenses: 0 };
+        const value =
+          field === "total"
+            ? (Number(entry.fixedSalary) || 0) + (Number(entry.monthlyExpenses) || 0)
+            : Number(entry[field]) || 0;
+        const label = emp.name ? emp.name.split(" ")[0] : "Emp";
+        return { label: label.slice(0, 8), value };
+      });
+
+    const renderBars = (selector, entries, color) => {
+      const svg = d3.select(`svg[data-expense-chart="${selector}"]`);
+      if (svg.empty()) return;
+      svg.selectAll("*").remove();
+      const width = svg.node().clientWidth || 320;
+      const height = svg.node().clientHeight || 240;
+      const padding = { top: 16, right: 12, bottom: 28, left: 36 };
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+      const x = d3
+        .scaleBand()
+        .domain(entries.map((d) => d.label))
+        .range([padding.left, width - padding.right])
+        .padding(0.25);
+      const y = d3
+        .scaleLinear()
+        .domain([0, d3.max(entries, (d) => d.value) || 1])
+        .nice()
+        .range([height - padding.bottom, padding.top]);
+
+      const bars = svg
+        .append("g")
+        .selectAll("rect")
+        .data(entries)
+        .enter()
+        .append("rect")
+        .attr("x", (d) => x(d.label))
+        .attr("width", x.bandwidth())
+        .attr("y", height - padding.bottom)
+        .attr("height", 0)
+        .attr("rx", 8)
+        .attr("fill", color)
+        .attr("opacity", 0.88);
+
+      bars
+        .transition()
+        .duration(450)
+        .attr("y", (d) => y(d.value))
+        .attr("height", (d) => height - padding.bottom - y(d.value));
+
+      bars.append("title").text((d) => `${d.label}: ${formatCurrency(d.value)}`);
+
+      svg
+        .append("g")
+        .attr("transform", `translate(0, ${height - padding.bottom})`)
+        .call(d3.axisBottom(x).tickSizeOuter(0))
+        .selectAll("text")
+        .attr("font-size", "10")
+        .attr("fill", "currentColor")
+        .attr("transform", "rotate(-12)")
+        .style("text-anchor", "end");
+
+      svg
+        .append("g")
+        .attr("transform", `translate(${padding.left}, 0)`)
+        .call(d3.axisLeft(y).ticks(4))
+        .selectAll("text")
+        .attr("font-size", "10")
+        .attr("fill", "currentColor");
+    };
+
+    renderBars("salary", buildEntries("fixedSalary"), "#f97316");
+    renderBars("expenses", buildEntries("monthlyExpenses"), "#38bdf8");
+    renderBars("total", buildEntries("total"), "#22c55e");
+  };
+
+  const renderExpenseHistory = (employeeId) => {
+    if (!expensesHistoryTable || !expensesHistoryTitle || !expensesHistoryChart) return;
+    if (!employeeId) {
+      expensesHistoryTitle.textContent = "Pick an employee to view history";
+      expensesHistoryTable.innerHTML = "<p class=\"muted text-sm\">Select an employee to view month-wise expenses.</p>";
+      if (expensesHistoryChart) {
+        expensesHistoryChart.innerHTML = "";
+      }
+      return;
+    }
+    const employee = cachedEmployees.find((emp) => emp._id === employeeId);
+    const history = cachedExpenseHistory[employeeId] || [];
+    expensesHistoryTitle.textContent = employee?.name || "Employee";
+    if (expensesHistoryMonths) {
+      expensesHistoryMonths.textContent = `Last ${Math.max(history.length, 1)} months`;
+    }
+    if (!history.length) {
+      expensesHistoryTable.innerHTML = "<p class=\"muted text-sm\">No history available for this employee.</p>";
+      if (expensesHistoryChart) {
+        expensesHistoryChart.innerHTML = "";
+      }
+      return;
+    }
+
+    const rows = history
+      .map((item) => {
+        const fixedSalary = Number(item.fixedSalary) || 0;
+        const monthlyExpenses = Number(item.monthlyExpenses) || 0;
+        const total = fixedSalary + monthlyExpenses;
+        return `
+          <tr>
+            <td>${getMonthLabel(item.month)}</td>
+            <td>${formatCurrency(fixedSalary)}</td>
+            <td>${formatCurrency(monthlyExpenses)}</td>
+            <td>${formatCurrency(total)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    expensesHistoryTable.innerHTML = `
+      <div class="expenses-history-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Salary</th>
+              <th>Expenses</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    if (window.d3) {
+      const d3 = window.d3;
+      const svg = d3.select(expensesHistoryChart);
+      svg.selectAll("*").remove();
+      const width = svg.node().clientWidth || 320;
+      const height = svg.node().clientHeight || 240;
+      const padding = { top: 16, right: 16, bottom: 30, left: 44 };
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+      const chartData = [...history]
+        .slice()
+        .reverse()
+        .map((item) => ({
+          label: new Date(`${item.month}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short" }),
+          value: (Number(item.fixedSalary) || 0) + (Number(item.monthlyExpenses) || 0),
+        }));
+
+      const x = d3
+        .scalePoint()
+        .domain(chartData.map((d) => d.label))
+        .range([padding.left, width - padding.right]);
+      const y = d3
+        .scaleLinear()
+        .domain([0, d3.max(chartData, (d) => d.value) || 1])
+        .nice()
+        .range([height - padding.bottom, padding.top]);
+
+      const line = d3
+        .line()
+        .x((d) => x(d.label))
+        .y((d) => y(d.value))
+        .curve(d3.curveMonotoneX);
+
+      svg
+        .append("path")
+        .datum(chartData)
+        .attr("fill", "none")
+        .attr("stroke", "#d62839")
+        .attr("stroke-width", 2.5)
+        .attr("d", line);
+
+      svg
+        .append("g")
+        .selectAll("circle")
+        .data(chartData)
+        .enter()
+        .append("circle")
+        .attr("cx", (d) => x(d.label))
+        .attr("cy", (d) => y(d.value))
+        .attr("r", 3.5)
+        .attr("fill", "#d62839");
+
+      svg
+        .append("g")
+        .attr("transform", `translate(0, ${height - padding.bottom})`)
+        .call(d3.axisBottom(x).tickSizeOuter(0))
+        .selectAll("text")
+        .attr("font-size", "10")
+        .attr("fill", "currentColor");
+
+      svg
+        .append("g")
+        .attr("transform", `translate(${padding.left}, 0)`)
+        .call(d3.axisLeft(y).ticks(4))
+        .selectAll("text")
+        .attr("font-size", "10")
+        .attr("fill", "currentColor");
+    }
+  };
+
+  const loadExpenseHistory = async (employeeId) => {
+    if (!employeeId) return;
+    const data = await request(`/admin/expenses/history/${employeeId}?limit=6`);
+    cachedExpenseHistory[employeeId] = data.history || [];
+    activeExpenseHistoryEmployee = employeeId;
+    renderExpenseHistory(employeeId);
+  };
+
+  const renderExpensesSection = () => {
+    renderExpensesTable();
+    renderExpensesCharts();
+  };
+
+  const updateExpenseSummaries = () => {
+    if (!cachedEmployees.length) return;
+    const monthKey = getActiveMonthKey();
+    const monthData = ensureExpenseDefaults(cachedEmployees, monthKey);
+    let totalSalary = 0;
+    let totalExpenses = 0;
+    cachedEmployees.forEach((emp) => {
+      const record = monthData[emp._id] || { fixedSalary: 0, monthlyExpenses: 0 };
+      totalSalary += Number(record.fixedSalary) || 0;
+      totalExpenses += Number(record.monthlyExpenses) || 0;
+    });
+    const total = totalSalary + totalExpenses;
+    if (expensesSummarySalary) expensesSummarySalary.textContent = formatCurrency(totalSalary);
+    if (expensesSummaryExpenses) expensesSummaryExpenses.textContent = formatCurrency(totalExpenses);
+    if (expensesSummaryTotal) expensesSummaryTotal.textContent = formatCurrency(total);
+    const salaryCell = expensesTableBody?.querySelector("[data-expense-total=\"salary\"]");
+    const expensesCell = expensesTableBody?.querySelector("[data-expense-total=\"expenses\"]");
+    const totalCell = expensesTableBody?.querySelector("[data-expense-total=\"total\"]");
+    if (salaryCell) salaryCell.textContent = formatCurrency(totalSalary);
+    if (expensesCell) expensesCell.textContent = formatCurrency(totalExpenses);
+    if (totalCell) totalCell.textContent = formatCurrency(total);
+  };
+
+  const generateExpensesReportHtml = () => {
+    const monthKey = getActiveMonthKey();
+    const monthLabel = getMonthLabel(monthKey);
+    const monthData = ensureExpenseDefaults(cachedEmployees, monthKey);
+    const rows = cachedEmployees.map((emp, idx) => {
+      const record = monthData[emp._id] || { fixedSalary: 0, monthlyExpenses: 0 };
+      const fixedSalary = Number(record.fixedSalary) || 0;
+      const monthlyExpenses = Number(record.monthlyExpenses) || 0;
+      const total = fixedSalary + monthlyExpenses;
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${emp.name || "Employee"}</td>
+          <td>${emp.territoryName || "-"}</td>
+          <td>${formatCurrency(fixedSalary)}</td>
+          <td>${formatCurrency(monthlyExpenses)}</td>
+          <td>${formatCurrency(total)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const totals = cachedEmployees.reduce(
+      (acc, emp) => {
+        const record = monthData[emp._id] || { fixedSalary: 0, monthlyExpenses: 0 };
+        acc.salary += Number(record.fixedSalary) || 0;
+        acc.expenses += Number(record.monthlyExpenses) || 0;
+        return acc;
+      },
+      { salary: 0, expenses: 0 }
+    );
+    const grandTotal = totals.salary + totals.expenses;
+    const maxValue = Math.max(totals.salary, totals.expenses, grandTotal, 1);
+
+    const buildBar = (value, color) => `
+      <svg viewBox="0 0 100 12" preserveAspectRatio="none">
+        <rect x="0" y="2" width="${(value / maxValue) * 100}" height="8" rx="4" fill="${color}"></rect>
+      </svg>
+    `;
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Monthly Expense Report</title>
+        <style>
+          body { font-family: "Manrope", Arial, sans-serif; padding: 32px; color: #0f172a; }
+          h1 { margin: 0 0 6px; }
+          .muted { color: #64748b; }
+          .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0 24px; }
+          .card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; background: #f8fafc; }
+          .card h3 { margin: 4px 0 0; }
+          table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 12px; }
+          th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }
+          th { background: #f1f5f9; text-transform: uppercase; letter-spacing: 0.12em; font-size: 10px; }
+          .charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+          .chart-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; }
+          .chart-card h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: #64748b; }
+          svg { width: 100%; height: 12px; }
+        </style>
+      </head>
+      <body>
+        <h1>Monthly Expense Report</h1>
+        <p class="muted">Month: ${monthLabel}</p>
+        <div class="summary">
+          <div class="card"><span class="muted">Salary Total</span><h3>${formatCurrency(totals.salary)}</h3></div>
+          <div class="card"><span class="muted">Expenses Total</span><h3>${formatCurrency(totals.expenses)}</h3></div>
+          <div class="card"><span class="muted">Grand Total</span><h3>${formatCurrency(grandTotal)}</h3></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee</th>
+              <th>Area</th>
+              <th>Fixed Salary</th>
+              <th>Monthly Expenses</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="charts">
+          <div class="chart-card">
+            <h4>Salary</h4>
+            ${buildBar(totals.salary, "#f97316")}
+            <p class="muted">${formatCurrency(totals.salary)}</p>
+          </div>
+          <div class="chart-card">
+            <h4>Expenses</h4>
+            ${buildBar(totals.expenses, "#38bdf8")}
+            <p class="muted">${formatCurrency(totals.expenses)}</p>
+          </div>
+          <div class="chart-card">
+            <h4>Total</h4>
+            ${buildBar(grandTotal, "#22c55e")}
+            <p class="muted">${formatCurrency(grandTotal)}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
 
   const renderDoctors = (items) => {
     if (!doctorsList) return;
@@ -1257,6 +1752,79 @@
     URL.revokeObjectURL(link.href);
   };
 
+  const exportExpensesCsv = () => {
+    if (!cachedEmployees.length) {
+      setFeedback("No employees to export.", true);
+      return;
+    }
+    const monthKey = getActiveMonthKey();
+    const monthData = ensureExpenseDefaults(cachedEmployees, monthKey);
+    const rows = cachedEmployees.map((emp) => {
+      const record = monthData[emp._id] || { fixedSalary: 0, monthlyExpenses: 0 };
+      const fixedSalary = Number(record.fixedSalary) || 0;
+      const monthlyExpenses = Number(record.monthlyExpenses) || 0;
+      return {
+        employee: emp.name || "",
+        area: emp.territoryName || "",
+        fixedSalary,
+        monthlyExpenses,
+        total: fixedSalary + monthlyExpenses,
+        month: monthKey
+      };
+    });
+    const header = Object.keys(rows[0] || {});
+    const csv = [
+      header.join(","),
+      ...rows.map((row) => header.map((key) => `"${String(row[key] ?? "").replace(/\"/g, "\"\"")}"`).join(","))
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `expenses-${monthKey}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const exportExpensesPdf = async () => {
+    const monthKey = getActiveMonthKey();
+    try {
+      const response = await fetch(`${apiBase}/admin/expenses/report/pdf?month=${encodeURIComponent(monthKey)}`, {
+        headers: {
+          ...authHeaders(),
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Unable to export PDF.");
+      }
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `expenses-report-${monthKey}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } catch (_error) {
+      setFeedback("Unable to export PDF report.", true);
+    }
+  };
+
+  const printExpensesReport = () => {
+    const html = generateExpensesReportHtml();
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      setFeedback("Pop-up blocked. Allow pop-ups to print.", true);
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   const renderCharts = () => {
     if (!window.d3) return;
     const d3 = window.d3;
@@ -1620,6 +2188,23 @@
       });
     }
     renderCharts();
+    renderExpensesSection();
+  };
+
+  const loadExpenses = async () => {
+    const monthKey = getActiveMonthKey();
+    const data = await request(`/admin/expenses?month=${encodeURIComponent(monthKey)}`);
+    cachedExpensesByMonth[monthKey] = {};
+    (data.expenses || []).forEach((item) => {
+      const employeeId = item.employee?.toString ? item.employee.toString() : item.employee;
+      if (!employeeId) return;
+      cachedExpensesByMonth[monthKey][employeeId] = {
+        fixedSalary: Number(item.fixedSalary) || 0,
+        monthlyExpenses: Number(item.monthlyExpenses) || 0,
+      };
+    });
+    cachedExpenses = cachedExpensesByMonth[monthKey];
+    renderExpensesSection();
   };
 
   const loadNews = async () => {
@@ -1706,7 +2291,15 @@
   };
 
   const loadAll = async () => {
-    await Promise.all([loadEmployees(), loadNews(), loadFocus(), loadForms(), loadLiveLocations(), loadNotifications()]);
+    await Promise.all([
+      loadEmployees(),
+      loadNews(),
+      loadFocus(),
+      loadForms(),
+      loadLiveLocations(),
+      loadNotifications(),
+      loadExpenses(),
+    ]);
     renderCharts();
   };
 
@@ -2044,6 +2637,9 @@
         if (target === "overview") {
           initLocationMap();
           loadLiveLocations().catch(() => setFeedback("Unable to load live locations.", true));
+        }
+        if (target === "expenses") {
+          loadExpenses().catch(() => setFeedback("Unable to load expenses.", true));
         }
         if (target === "doctors") {
           loadDoctors().catch(() => setFeedback("Unable to load doctors.", true));
@@ -2539,6 +3135,12 @@
     if (liveLocationsList && cachedLiveLocations.length) {
       renderLiveLocations(cachedLiveLocations);
     }
+    if (expensesCharts.salary || expensesCharts.expenses || expensesCharts.total) {
+      renderExpensesCharts();
+    }
+    if (activeExpenseHistoryEmployee) {
+      renderExpenseHistory(activeExpenseHistoryEmployee);
+    }
   });
 
   if (formSearch) {
@@ -2564,6 +3166,76 @@
   }
   if (formExport) {
     formExport.addEventListener("click", exportFormsCsv);
+  }
+
+  if (expensesMonthInput) {
+    expensesMonthInput.addEventListener("change", () => {
+      loadExpenses().catch(() => setFeedback("Unable to load expenses.", true));
+    });
+  }
+
+  if (expensesTableBody) {
+    expensesTableBody.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (!target.matches("[data-expense-input]")) return;
+      const employeeId = target.dataset.expenseEmployee;
+      const field = target.dataset.expenseField;
+      if (!employeeId || !field) return;
+      updateExpenseEntry(employeeId, field, target.value);
+      const rowTotalCell = expensesTableBody.querySelector(`[data-expense-row-total="${employeeId}"]`);
+      const record = cachedExpenses[employeeId] || { fixedSalary: 0, monthlyExpenses: 0 };
+      const rowTotal = (Number(record.fixedSalary) || 0) + (Number(record.monthlyExpenses) || 0);
+      if (rowTotalCell) rowTotalCell.textContent = formatCurrency(rowTotal);
+      updateExpenseSummaries();
+      renderExpensesCharts();
+      const monthKey = getActiveMonthKey();
+      if (expenseSaveTimers.has(employeeId)) {
+        clearTimeout(expenseSaveTimers.get(employeeId));
+      }
+      expenseSaveTimers.set(
+        employeeId,
+        setTimeout(async () => {
+          try {
+            await request("/admin/expenses", {
+              method: "POST",
+              body: JSON.stringify({
+                employeeId,
+                month: monthKey,
+                fixedSalary: record.fixedSalary,
+                monthlyExpenses: record.monthlyExpenses,
+              }),
+            });
+          } catch (_error) {
+            setFeedback("Unable to save expense changes.", true);
+          }
+        }, 600)
+      );
+    });
+    expensesTableBody.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const employeeId = target.getAttribute("data-expense-history");
+      if (!employeeId) return;
+      loadExpenseHistory(employeeId).catch(() => setFeedback("Unable to load expense history.", true));
+    });
+  }
+
+  if (expensesExportButtons.length) {
+    expensesExportButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const mode = button.dataset.expensesExport;
+        if (mode === "pdf") {
+          exportExpensesPdf();
+        } else {
+          exportExpensesCsv();
+        }
+      });
+    });
+  }
+
+  if (expensesPrintButton) {
+    expensesPrintButton.addEventListener("click", printExpensesReport);
   }
 })();
 
