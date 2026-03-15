@@ -2157,47 +2157,6 @@
     }
   };
 
-  const setupThreeChart = () => {
-    const canvas = document.querySelector("[data-chart-3d]");
-    if (!canvas || !window.THREE) return;
-    const THREE = window.THREE;
-    const scene = new THREE.Scene();
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.set(0, 0, 6);
-
-    const light = new THREE.PointLight(0xffffff, 0.9);
-    light.position.set(4, 6, 6);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
-    const geometry = new THREE.TorusKnotGeometry(1.2, 0.35, 120, 16);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xfb7185,
-      metalness: 0.4,
-      roughness: 0.2
-    });
-    const knot = new THREE.Mesh(geometry, material);
-    scene.add(knot);
-
-    const resize = () => {
-      const width = canvas.clientWidth || 300;
-      const height = canvas.clientHeight || 240;
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    const animate = () => {
-      knot.rotation.x += 0.005;
-      knot.rotation.y += 0.01;
-      renderer.render(scene, camera);
-      requestAnimationFrame(animate);
-    };
-    animate();
-  };
 
   const loadEmployees = async () => {
     const data = await request("/admin/employees");
@@ -2465,7 +2424,6 @@
         }
         showDashboard();
         setSection("overview");
-        setupThreeChart();
         initLocationMap();
         initSocket();
         await loadAll();

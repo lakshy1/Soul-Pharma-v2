@@ -223,7 +223,7 @@ router.get("/expenses/summary", auth(["admin"]), async (req, res) => {
       });
     const summary = await Expense.aggregate([
       { $match: { month: { $in: monthKeys } } },
-      { $group: { _id: "$month", total: { $sum: "$monthlyExpenses" } } },
+      { $group: { _id: "$month", total: { $sum: { $add: ["$fixedSalary", "$monthlyExpenses"] } } } },
     ]);
     const summaryMap = new Map(summary.map((item) => [item._id, item.total]));
     const rows = monthKeys.map((month) => ({
