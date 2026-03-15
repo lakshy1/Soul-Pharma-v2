@@ -524,7 +524,7 @@
       svg.selectAll("*").remove();
       const width = svg.node().clientWidth || 320;
       const height = svg.node().clientHeight || 240;
-      const padding = { top: 16, right: 12, bottom: 28, left: 36 };
+      const padding = { top: 12, right: 8, bottom: 28, left: 52 };
       svg.attr("viewBox", `0 0 ${width} ${height}`);
 
       const x = d3
@@ -646,7 +646,7 @@
       svg.selectAll("*").remove();
       const width = svg.node().clientWidth || 320;
       const height = svg.node().clientHeight || 240;
-      const padding = { top: 16, right: 16, bottom: 30, left: 44 };
+      const padding = { top: 12, right: 12, bottom: 30, left: 56 };
       svg.attr("viewBox", `0 0 ${width} ${height}`);
 
       const chartData = [...history]

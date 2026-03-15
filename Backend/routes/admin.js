@@ -293,6 +293,11 @@ router.get("/expenses/report/pdf", auth(["admin"]), async (req, res) => {
       new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(
         Number(value) || 0
       );
+    const monthLabel = (() => {
+      const date = new Date(`${month}-01T00:00:00`);
+      if (Number.isNaN(date.getTime())) return month;
+      return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    })();
 
     const totals = employees.reduce(
       (acc, emp) => {
@@ -314,27 +319,52 @@ router.get("/expenses/report/pdf", auth(["admin"]), async (req, res) => {
     doc.pipe(res);
 
     const brandColor = "#d62839";
-    const logoPath = path.resolve(__dirname, "..", "..", "Frontend", "Images", "Logo.png");
+    const logoPath = path.resolve(__dirname, "..", "..", "Frontend", "Images", "SoulPharma.png");
+    const pageWidth = doc.page.width;
     const headerTop = doc.y;
+    const logoSize = 54;
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 40, headerTop, { width: 90, height: 50 });
+      doc.image(logoPath, (pageWidth - logoSize) / 2, headerTop, { width: logoSize, height: logoSize });
     }
     doc
       .fontSize(18)
       .fillColor(brandColor)
-      .text("Soul Pharma", 140, headerTop + 6, { align: "left" });
+      .text("Soul Pharma", 40, headerTop + logoSize + 6, { align: "center", width: pageWidth - 80 });
     doc
       .fontSize(11)
       .fillColor("#475569")
-      .text("Monthly Expense Report", 140, headerTop + 28, { align: "left" });
-    doc.moveDown(2.4);
-    doc.fontSize(11).fillColor("#475569").text(`Month: ${month}`);
+      .text("Monthly Expense Report", 40, headerTop + logoSize + 26, { align: "center", width: pageWidth - 80 });
+    doc
+      .moveTo(120, headerTop + logoSize + 48)
+      .lineTo(pageWidth - 120, headerTop + logoSize + 48)
+      .strokeColor("#e2e8f0")
+      .stroke();
+    doc.y = headerTop + logoSize + 62;
+    doc.fontSize(11).fillColor("#475569").text(`Month: ${monthLabel}`, { align: "center" });
     doc.moveDown(0.8);
 
-    doc.fontSize(12).fillColor("#0f172a").text(`Salary Total: ${formatCurrency(totals.salary)}`);
-    doc.text(`Expenses Total: ${formatCurrency(totals.expenses)}`);
-    doc.text(`Grand Total: ${formatCurrency(grandTotal)}`);
-    doc.moveDown(0.8);
+    const summaryY = doc.y;
+    const summaryGap = 12;
+    const summaryWidth = (pageWidth - 80 - summaryGap * 2) / 3;
+    const summaryHeight = 48;
+    const summaryItems = [
+      { label: "Salary Total", value: formatCurrency(totals.salary) },
+      { label: "Expenses Total", value: formatCurrency(totals.expenses) },
+      { label: "Grand Total", value: formatCurrency(grandTotal) },
+    ];
+    summaryItems.forEach((item, idx) => {
+      const x = 40 + idx * (summaryWidth + summaryGap);
+      doc.rect(x, summaryY, summaryWidth, summaryHeight).fill("#f8fafc");
+      doc
+        .fontSize(9)
+        .fillColor("#64748b")
+        .text(item.label, x + 10, summaryY + 8, { width: summaryWidth - 20 });
+      doc
+        .fontSize(12)
+        .fillColor("#0f172a")
+        .text(item.value, x + 10, summaryY + 24, { width: summaryWidth - 20 });
+    });
+    doc.y = summaryY + summaryHeight + 14;
 
     const chartX = 40;
     const chartY = doc.y;
@@ -367,8 +397,8 @@ router.get("/expenses/report/pdf", auth(["admin"]), async (req, res) => {
     const rowHeight = 18;
 
     const drawTableHeader = () => {
-      doc.rect(tableX, cursorY, columns.reduce((sum, c) => sum + c.width, 0), rowHeight).fill("#f1f5f9");
-      doc.fontSize(9).fillColor("#0f172a");
+      doc.rect(tableX, cursorY, columns.reduce((sum, c) => sum + c.width, 0), rowHeight).fill(brandColor);
+      doc.fontSize(9).fillColor("#ffffff");
       let x = tableX + 4;
       columns.forEach((col) => {
         doc.text(col.label, x, cursorY + 4, { width: col.width - 6 });
@@ -420,6 +450,10 @@ router.get("/expenses/report/pdf", auth(["admin"]), async (req, res) => {
       .stroke();
     doc.fontSize(9).fillColor("#64748b").text("Prepared By", 40, footerY + 6);
     doc.fontSize(9).fillColor("#64748b").text("Authorized Signature", 320, footerY + 6);
+    doc
+      .fontSize(8)
+      .fillColor("#94a3b8")
+      .text("Soul Pharma • Confidential", 40, footerY + 28, { align: "center", width: pageWidth - 80 });
 
     doc.end();
   } catch (error) {
