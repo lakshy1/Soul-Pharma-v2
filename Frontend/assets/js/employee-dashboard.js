@@ -100,7 +100,7 @@
   let socket = null;
   let expenseCache = [];
   let expenseByDate = {};
-  let selectedExpenseDate = toLocalDateKey(new Date());
+  let selectedExpenseDate = "";
   let expenseMonthDate = null;
 
   const setFeedback = (message, isError = false) => {
@@ -147,6 +147,9 @@
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 10);
   };
+  if (!selectedExpenseDate) {
+    selectedExpenseDate = toLocalDateKey(new Date());
+  }
 
   const setNow = () => {
     if (!activityTime) return;
