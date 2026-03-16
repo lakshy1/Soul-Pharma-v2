@@ -15,6 +15,7 @@ const employeeExpenseSchema = new mongoose.Schema(
       default: "pending",
       index: true,
     },
+    payrollPosted: { type: Boolean, default: false, index: true },
     approvedAt: { type: Date },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
   },

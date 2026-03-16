@@ -562,19 +562,20 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
     if (!employeeId || !month) {
       return res.status(400).json({ message: "Employee and month are required." });
     }
-    const pendingExpenses = await EmployeeExpense.find({
+    const toPost = await EmployeeExpense.find({
       employee: employeeId,
       month,
-      status: "pending",
+      status: { $in: ["pending", "approved"] },
+      payrollPosted: false,
     });
-    if (!pendingExpenses.length) {
+    if (!toPost.length) {
       return res.json({ approved: 0, total: 0 });
     }
-    const total = pendingExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const total = toPost.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const approvedAt = new Date();
     await EmployeeExpense.updateMany(
-      { _id: { $in: pendingExpenses.map((item) => item._id) } },
-      { $set: { status: "approved", approvedAt, approvedBy: req.user.id } }
+      { _id: { $in: toPost.map((item) => item._id) } },
+      { $set: { status: "approved", approvedAt, approvedBy: req.user.id, payrollPosted: true } }
     );
     const employee = await Employee.findById(employeeId);
     const payrollMonth = String(month);
@@ -587,7 +588,7 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
       },
       { new: true, upsert: true }
     );
-    return res.json({ approved: pendingExpenses.length, total, expense, payrollMonth });
+    return res.json({ approved: toPost.length, total, expense, payrollMonth });
   } catch (error) {
     return res.status(500).json({ message: "Unable to approve expenses" });
   }
