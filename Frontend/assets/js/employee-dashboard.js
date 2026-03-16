@@ -100,7 +100,7 @@
   let socket = null;
   let expenseCache = [];
   let expenseByDate = {};
-  let selectedExpenseDate = new Date().toISOString().slice(0, 10);
+  let selectedExpenseDate = toLocalDateKey(new Date());
   let expenseMonthDate = null;
 
   const setFeedback = (message, isError = false) => {
@@ -141,6 +141,12 @@
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(Number(value) || 0);
+
+  const toLocalDateKey = (dateValue) => {
+    const date = new Date(dateValue);
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  };
 
   const setNow = () => {
     if (!activityTime) return;
@@ -634,7 +640,7 @@
   const buildExpenseMap = (items) => {
     const map = {};
     items.forEach((item) => {
-      const dateKey = new Date(item.expenseDate || item.date || item.createdAt).toISOString().slice(0, 10);
+      const dateKey = toLocalDateKey(item.expenseDate || item.date || item.createdAt);
       if (!map[dateKey]) {
         map[dateKey] = [];
       }
@@ -658,7 +664,7 @@
 
     const cards = days
       .map((day) => {
-        const dateKey = day.toISOString().slice(0, 10);
+        const dateKey = toLocalDateKey(day);
         const entries = expenseByDate[dateKey] || [];
         const dayTotal = entries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
         const isActive = dateKey === selectedExpenseDate;
@@ -740,14 +746,14 @@
     }
     const range = getMonthRange(expenseMonthDate);
     const params = new URLSearchParams({
-      from: range.start.toISOString().slice(0, 10),
-      to: range.end.toISOString().slice(0, 10),
+      from: toLocalDateKey(range.start),
+      to: toLocalDateKey(range.end),
     });
     const data = await request(`/employee/expenses?${params.toString()}`, { method: "GET", headers: headers() });
     expenseCache = data.expenses || [];
     expenseByDate = buildExpenseMap(expenseCache);
     if (!expenseByDate[selectedExpenseDate]) {
-      selectedExpenseDate = range.start.toISOString().slice(0, 10);
+      selectedExpenseDate = toLocalDateKey(range.start);
     }
     renderExpenseDays();
     renderExpenseDayList();
@@ -1170,7 +1176,7 @@
         });
         expenseForm.reset();
         if (expenseDateInput) {
-          expenseDateInput.value = new Date().toISOString().slice(0, 10);
+        expenseDateInput.value = toLocalDateKey(new Date());
         }
         await loadExpenses();
         setFeedback("Expense submitted.");
@@ -1219,7 +1225,7 @@
       } else {
         expenseMonthDate = new Date(expenseMonthDate.getFullYear(), expenseMonthDate.getMonth() - 1, 1);
       }
-      selectedExpenseDate = new Date(expenseMonthDate).toISOString().slice(0, 10);
+      selectedExpenseDate = toLocalDateKey(expenseMonthDate);
       loadExpenses().catch(() => {});
     });
   }
@@ -1238,7 +1244,7 @@
         return;
       }
       expenseMonthDate = new Date(expenseMonthDate.getFullYear(), expenseMonthDate.getMonth() + 1, 1);
-      selectedExpenseDate = new Date(expenseMonthDate).toISOString().slice(0, 10);
+      selectedExpenseDate = toLocalDateKey(expenseMonthDate);
       loadExpenses().catch(() => {});
     });
   }
@@ -1303,7 +1309,7 @@
     const now = new Date();
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const range = getMonthRange(prev);
-    expenseDateInput.value = range.end.toISOString().slice(0, 10);
+    expenseDateInput.value = toLocalDateKey(range.end);
   }
   setSection("overview");
   init();
