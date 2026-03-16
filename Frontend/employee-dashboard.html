@@ -57,6 +57,78 @@
     [data-theme="dark"] .notif-badge {
       border-color: #0b1120;
     }
+    .expense-grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .expense-day {
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.72);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease;
+      cursor: pointer;
+      min-height: 92px;
+    }
+    .expense-day:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    }
+    .expense-day.is-active {
+      border-color: rgba(214, 40, 57, 0.6);
+      box-shadow: 0 14px 26px rgba(214, 40, 57, 0.18);
+    }
+    .expense-day .day-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .expense-day .day-meta {
+      font-size: 0.7rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .expense-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(214, 40, 57, 0.12);
+      color: #d62839;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .expense-timeline {
+      display: none;
+      gap: 0.75rem;
+    }
+    .expense-timeline .expense-day {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .expense-day-total {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .expense-day-count {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    @media (max-width: 768px) {
+      .expense-grid {
+        display: none;
+      }
+      .expense-timeline {
+        display: grid;
+      }
+    }
   </style>
 </head>
 <body data-page="employee-dashboard">
@@ -95,6 +167,7 @@
           </button>
           <button type="button" class="employee-tab" data-emp-nav="doctors">Doctors</button>
           <button type="button" class="employee-tab" data-emp-nav="activity">Daily Activity</button>
+          <button type="button" class="employee-tab" data-emp-nav="expenses">Expenses</button>
           <button type="button" class="employee-tab" data-emp-nav="calendar">Calendar</button>
           <!-- desktop logout tab, in addition to the action button at top -->
           <button type="button" class="employee-tab" data-employee-logout>Logout</button>
@@ -110,6 +183,7 @@
             </button>
             <button type="button" class="employee-tab w-full text-left" data-emp-nav="doctors">Doctors</button>
             <button type="button" class="employee-tab w-full text-left" data-emp-nav="activity">Daily Activity</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="expenses">Expenses</button>
             <button type="button" class="employee-tab w-full text-left" data-emp-nav="calendar">Calendar</button>
           </div>
           <div class="mobile-nav-actions">
@@ -364,6 +438,64 @@
           </div>
           <div class="calendar-shell mt-6">
             <svg class="calendar-svg" data-calendar></svg>
+          </div>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="expenses">
+        <section class="glass-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-semibold">Expense Tracker</h2>
+              <p class="muted mt-1 text-sm">Log travel and field expenses for the last 30 days.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="focus-pill" data-expense-month-label>Last 30 Days</span>
+              <span class="expense-chip" data-expense-total-label>Total: â‚¹0</span>
+            </div>
+          </div>
+          <div class="mt-4 expense-grid" data-expense-grid></div>
+          <div class="mt-4 expense-timeline" data-expense-timeline></div>
+          <div class="mt-5 grid gap-3 lg:grid-cols-2">
+            <div class="rounded-xl border border-white/30 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm uppercase tracking-[0.14em] text-rose-500" data-expense-selected-label>Selected Day</p>
+                  <p class="text-lg font-semibold" data-expense-selected-date>â€”</p>
+                </div>
+                <span class="focus-pill" data-expense-selected-total>â‚¹0</span>
+              </div>
+              <div class="mt-3 grid gap-3" data-expense-day-list></div>
+            </div>
+            <div class="rounded-xl border border-white/30 p-4">
+              <h3 class="text-lg font-semibold">Add Expense</h3>
+              <p class="muted mt-1 text-sm">Include travel distance, working area, and quick notes.</p>
+              <form class="mt-4 grid gap-3" data-expense-form>
+                <div class="grid gap-3 md:grid-cols-2">
+                  <div class="grid gap-2">
+                    <label class="form-label">Amount (â‚¹)</label>
+                    <input name="amount" type="number" min="0" step="1" class="form-input" placeholder="1200" required>
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Distance (km)</label>
+                    <input name="distance" type="number" min="0" step="0.1" class="form-input" placeholder="18.5">
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Date</label>
+                    <input name="date" type="date" class="form-input" data-expense-date required>
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Working Area</label>
+                    <input name="workingArea" type="text" class="form-input" placeholder="Central Zone">
+                  </div>
+                </div>
+                <div class="grid gap-2">
+                  <label class="form-label">Remarks</label>
+                  <textarea name="remarks" class="form-textarea" placeholder="Fuel, lunch, toll, local commute"></textarea>
+                </div>
+                <button type="submit" class="btn-brand w-full md:w-fit">Submit Expense</button>
+              </form>
+            </div>
           </div>
         </section>
       </section>

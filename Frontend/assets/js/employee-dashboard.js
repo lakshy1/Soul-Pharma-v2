@@ -66,6 +66,17 @@
   const popupList = document.querySelector("[data-popup-list]");
   const popupClose = document.querySelector("[data-popup-close]");
 
+  const expenseGrid = document.querySelector("[data-expense-grid]");
+  const expenseTimeline = document.querySelector("[data-expense-timeline]");
+  const expenseDayList = document.querySelector("[data-expense-day-list]");
+  const expenseForm = document.querySelector("[data-expense-form]");
+  const expenseDateInput = document.querySelector("[data-expense-date]");
+  const expenseMonthLabel = document.querySelector("[data-expense-month-label]");
+  const expenseTotalLabel = document.querySelector("[data-expense-total-label]");
+  const expenseSelectedLabel = document.querySelector("[data-expense-selected-label]");
+  const expenseSelectedDate = document.querySelector("[data-expense-selected-date]");
+  const expenseSelectedTotal = document.querySelector("[data-expense-selected-total]");
+
   const logoutBtns = [...document.querySelectorAll("[data-employee-logout]")];
 
   let doctorsCache = [];
@@ -80,6 +91,9 @@
   let batteryInfo = null;
   let locationQueue = [];
   let socket = null;
+  let expenseCache = [];
+  let expenseByDate = {};
+  let selectedExpenseDate = new Date().toISOString().slice(0, 10);
 
   const setFeedback = (message, isError = false) => {
     if (!feedback) return;
@@ -100,6 +114,9 @@
         loadCalendar();
       }, 60);
     }
+    if (id === "expenses") {
+      loadExpenses().catch(() => {});
+    }
   };
 
   const formatDateTime = (value) => {
@@ -109,6 +126,13 @@
       timeStyle: "short",
     });
   };
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
 
   const setNow = () => {
     if (!activityTime) return;
@@ -574,6 +598,132 @@
     requestAnimationFrame(renderCalendar);
   };
 
+  const getLastDays = (days) => {
+    const result = [];
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      result.push(d);
+    }
+    return result;
+  };
+
+  const setSelectedExpenseDate = (dateKey) => {
+    selectedExpenseDate = dateKey;
+    renderExpenseDays();
+    renderExpenseDayList();
+  };
+
+  const buildExpenseMap = (items) => {
+    const map = {};
+    items.forEach((item) => {
+      const dateKey = new Date(item.expenseDate || item.date || item.createdAt).toISOString().slice(0, 10);
+      if (!map[dateKey]) {
+        map[dateKey] = [];
+      }
+      map[dateKey].push(item);
+    });
+    return map;
+  };
+
+  const renderExpenseDays = () => {
+    if (!expenseGrid && !expenseTimeline) return;
+    const days = getLastDays(30);
+    const total = Object.values(expenseByDate).flat().reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    if (expenseTotalLabel) expenseTotalLabel.textContent = `Total: ${formatCurrency(total)}`;
+    if (expenseMonthLabel) expenseMonthLabel.textContent = "Last 30 Days";
+
+    const makeCard = (day) => {
+      const dateKey = day.toISOString().slice(0, 10);
+      const entries = expenseByDate[dateKey] || [];
+      const dayTotal = entries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      const isActive = dateKey === selectedExpenseDate;
+      return `
+        <button type="button" class="expense-day ${isActive ? "is-active" : ""}" data-expense-day="${dateKey}">
+          <div class="day-meta">${day.toLocaleDateString("en-IN", { weekday: "short" })}</div>
+          <div class="day-label">${day.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</div>
+          <div class="mt-2 expense-day-total">${formatCurrency(dayTotal)}</div>
+          <div class="expense-day-count">${entries.length} ${entries.length === 1 ? "entry" : "entries"}</div>
+        </button>
+      `;
+    };
+
+    if (expenseGrid) {
+      expenseGrid.innerHTML = days.map((day) => makeCard(day)).join("");
+    }
+    if (expenseTimeline) {
+      expenseTimeline.innerHTML = days
+        .map(
+          (day) => `
+          <button type="button" class="expense-day ${day.toISOString().slice(0, 10) === selectedExpenseDate ? "is-active" : ""}" data-expense-day="${day.toISOString().slice(0, 10)}">
+            <div>
+              <div class="day-meta">${day.toLocaleDateString("en-IN", { weekday: "short" })}</div>
+              <div class="day-label">${day.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</div>
+              <div class="expense-day-count">${(expenseByDate[day.toISOString().slice(0, 10)] || []).length} entries</div>
+            </div>
+            <div class="expense-day-total">${formatCurrency(
+              (expenseByDate[day.toISOString().slice(0, 10)] || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+            )}</div>
+          </button>
+        `
+        )
+        .join("");
+    }
+  };
+
+  const renderExpenseDayList = () => {
+    if (!expenseDayList) return;
+    const entries = (expenseByDate[selectedExpenseDate] || []).slice().sort((a, b) => {
+      return new Date(b.expenseDate || b.date || b.createdAt) - new Date(a.expenseDate || a.date || a.createdAt);
+    });
+    const total = entries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    if (expenseSelectedDate) {
+      expenseSelectedDate.textContent = new Date(`${selectedExpenseDate}T00:00:00`).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    }
+    if (expenseSelectedTotal) expenseSelectedTotal.textContent = formatCurrency(total);
+    if (expenseSelectedLabel) expenseSelectedLabel.textContent = "Selected Day";
+
+    if (!entries.length) {
+      expenseDayList.innerHTML = "<p class=\"muted text-sm\">No expenses logged for this day.</p>";
+      return;
+    }
+    expenseDayList.innerHTML = entries
+      .map((item) => {
+        const distance = Number(item.distance) || 0;
+        const area = item.workingArea || "Working area";
+        const time = item.expenseDate
+          ? new Date(item.expenseDate).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+          : "";
+        return `
+          <div class="activity-card">
+            <div>
+              <p class="activity-title">${formatCurrency(item.amount)}</p>
+              <p class="muted text-xs">${area}${time ? ` â€¢ ${time}` : ""}</p>
+              ${item.remarks ? `<p class="muted text-sm mt-1">${item.remarks}</p>` : ""}
+            </div>
+            <span class="focus-pill">${distance ? `${distance} km` : "Expense"}</span>
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const loadExpenses = async () => {
+    const data = await request("/employee/expenses?days=30", { method: "GET", headers: headers() });
+    expenseCache = data.expenses || [];
+    expenseByDate = buildExpenseMap(expenseCache);
+    if (!expenseByDate[selectedExpenseDate]) {
+      selectedExpenseDate = new Date().toISOString().slice(0, 10);
+    }
+    renderExpenseDays();
+    renderExpenseDayList();
+  };
+
   const renderCalendar = () => {
     if (!calSvg || !window.d3) return;
     const d3 = window.d3;
@@ -944,12 +1094,52 @@
     });
   }
 
+  if (expenseGrid || expenseTimeline) {
+    const handler = (event) => {
+      const target = event.target.closest("[data-expense-day]");
+      if (!target) return;
+      const dateKey = target.dataset.expenseDay;
+      if (dateKey) {
+        setSelectedExpenseDate(dateKey);
+        if (expenseDateInput) expenseDateInput.value = dateKey;
+      }
+    };
+    expenseGrid?.addEventListener("click", handler);
+    expenseTimeline?.addEventListener("click", handler);
+  }
+
+  if (expenseForm) {
+    expenseForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(expenseForm);
+      const payload = Object.fromEntries(formData.entries());
+      try {
+        await request("/employee/expenses", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        expenseForm.reset();
+        if (expenseDateInput) {
+          expenseDateInput.value = new Date().toISOString().slice(0, 10);
+        }
+        await loadExpenses();
+        setFeedback("Expense submitted.");
+      } catch (error) {
+        setFeedback(error.message || "Unable to submit expense.", true);
+      }
+    });
+  }
+
   window.addEventListener("resize", () => {
     if (doctorsList && doctorsCache.length) {
       renderDoctors(doctorsCache);
     }
     if (activityList && activitiesCache.length) {
       renderActivities(activitiesCache);
+    }
+    if ((expenseGrid || expenseTimeline) && expenseCache.length) {
+      renderExpenseDays();
+      renderExpenseDayList();
     }
   });
 
@@ -981,6 +1171,7 @@
       await loadDoctors();
       await loadActivities();
       await loadCalendar();
+      await loadExpenses();
       loadQueue();
       await loadNotifications();
       initSocket();
@@ -995,6 +1186,9 @@
   };
 
   setNow();
+  if (expenseDateInput) {
+    expenseDateInput.value = new Date().toISOString().slice(0, 10);
+  }
   setSection("overview");
   init();
 })();

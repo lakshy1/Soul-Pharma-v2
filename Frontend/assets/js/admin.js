@@ -106,6 +106,16 @@
   const expensesHistoryChart = document.querySelector("[data-expense-history-chart]");
   const expensesHistoryTable = document.querySelector("[data-expense-history-table]");
 
+  const claimEmployeeSelect = document.querySelector("[data-claim-employee]");
+  const claimMonthInput = document.querySelector("[data-claim-month]");
+  const claimLoadButton = document.querySelector("[data-claim-load]");
+  const claimTableBody = document.querySelector("[data-claim-table]");
+  const claimApproveButton = document.querySelector("[data-claim-approve]");
+  const claimPrintButton = document.querySelector("[data-claim-print]");
+  const claimSummaryTotal = document.querySelector("[data-claim-summary=\"total\"]");
+  const claimSummaryPending = document.querySelector("[data-claim-summary=\"pending\"]");
+  const claimSummaryApproved = document.querySelector("[data-claim-summary=\"approved\"]");
+
   let editingEmployeeId = null;
   let editingNewsId = null;
   let editingFocusId = null;
@@ -126,6 +136,7 @@
   let cachedExpenseHistory = {};
   let activeExpenseHistoryEmployee = null;
   let cachedExpensesSummary = [];
+  let cachedExpenseClaims = [];
   let locationMap = null;
   let locationMarkers = new Map();
   let locationTrails = new Map();
@@ -749,6 +760,168 @@
     if (salaryCell) salaryCell.textContent = formatCurrency(totalSalary);
     if (expensesCell) expensesCell.textContent = formatCurrency(totalExpenses);
     if (totalCell) totalCell.textContent = formatCurrency(total);
+  };
+
+  const getClaimsMonthKey = () => {
+    if (claimMonthInput) {
+      if (!claimMonthInput.value) {
+        const now = new Date();
+        const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        claimMonthInput.value = key;
+        return key;
+      }
+      return claimMonthInput.value;
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const renderExpenseClaims = () => {
+    if (!claimTableBody) return;
+    if (!cachedExpenseClaims.length) {
+      claimTableBody.innerHTML = "<tr><td class=\"p-4 muted\" colspan=\"8\">No expense records found.</td></tr>";
+      if (claimSummaryTotal) claimSummaryTotal.textContent = formatCurrency(0);
+      if (claimSummaryPending) claimSummaryPending.textContent = formatCurrency(0);
+      if (claimSummaryApproved) claimSummaryApproved.textContent = formatCurrency(0);
+      return;
+    }
+    const rows = cachedExpenseClaims
+      .map((item) => {
+        const dateKey = new Date(item.expenseDate || item.date || item.createdAt).toISOString().slice(0, 10);
+        const status = item.status || "pending";
+        const employeeName = item.employee?.name || item.employeeName || "Employee";
+        const statusClass =
+          status === "approved" ? "is-approved" : status === "rejected" ? "is-rejected" : "is-pending";
+        return `
+          <tr class="border-t border-white/30">
+            <td class="p-3">
+              <input type="date" class="claim-input" data-claim-field="expenseDate" value="${dateKey}">
+            </td>
+            <td class="p-3 font-semibold">${employeeName}</td>
+            <td class="p-3">
+              <input type="text" class="claim-input" data-claim-field="workingArea" value="${item.workingArea || ""}">
+            </td>
+            <td class="p-3">
+              <input type="number" min="0" step="0.1" class="claim-input" data-claim-field="distance" value="${Number(item.distance) || 0}">
+            </td>
+            <td class="p-3">
+              <input type="number" min="0" step="1" class="claim-input" data-claim-field="amount" value="${Number(item.amount) || 0}">
+            </td>
+            <td class="p-3">
+              <input type="text" class="claim-input" data-claim-field="remarks" value="${item.remarks || ""}">
+            </td>
+            <td class="p-3">
+              <span class="claim-pill ${statusClass}">${status}</span>
+            </td>
+            <td class="p-3">
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn-secondary !px-3 !py-1" data-claim-update="${item._id}">Update</button>
+                <button type="button" class="btn-secondary !px-3 !py-1" data-claim-delete="${item._id}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+    claimTableBody.innerHTML = rows;
+
+    const totals = cachedExpenseClaims.reduce(
+      (acc, item) => {
+        const amount = Number(item.amount) || 0;
+        acc.total += amount;
+        if ((item.status || "pending") === "approved") {
+          acc.approved += amount;
+        } else {
+          acc.pending += amount;
+        }
+        return acc;
+      },
+      { total: 0, pending: 0, approved: 0 }
+    );
+    if (claimSummaryTotal) claimSummaryTotal.textContent = formatCurrency(totals.total);
+    if (claimSummaryPending) claimSummaryPending.textContent = formatCurrency(totals.pending);
+    if (claimSummaryApproved) claimSummaryApproved.textContent = formatCurrency(totals.approved);
+  };
+
+  const loadExpenseClaims = async () => {
+    const month = getClaimsMonthKey();
+    const employeeId = claimEmployeeSelect?.value || "";
+    const params = new URLSearchParams({ month });
+    if (employeeId) params.set("employeeId", employeeId);
+    const data = await request(`/admin/employee-expenses?${params.toString()}`);
+    cachedExpenseClaims = data.expenses || [];
+    renderExpenseClaims();
+  };
+
+  const generateExpenseClaimsPrintHtml = () => {
+    const monthKey = getClaimsMonthKey();
+    const monthLabel = getMonthLabel(monthKey);
+    const employeeId = claimEmployeeSelect?.value || "";
+    const employeeName =
+      cachedEmployees.find((emp) => emp._id === employeeId)?.name || (employeeId ? "Employee" : "All Employees");
+    const total = cachedExpenseClaims.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const reportDate = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const rows = cachedExpenseClaims
+      .map((item, idx) => {
+        const dateLabel = new Date(item.expenseDate || item.date || item.createdAt).toLocaleDateString("en-IN");
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${item.employee?.name || item.employeeName || "Employee"}</td>
+            <td>${dateLabel}</td>
+            <td>${item.workingArea || "-"}</td>
+            <td>${Number(item.distance) || 0}</td>
+            <td>${formatCurrency(item.amount)}</td>
+            <td>${item.remarks || "-"}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Expense Claims Report</title>
+        <style>
+          @page { size: A4 portrait; margin: 18mm; }
+          body { font-family: "Manrope", Arial, sans-serif; color: #0f172a; }
+          h1 { margin: 0 0 8px; font-size: 20px; }
+          .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 12px; margin-bottom: 12px; }
+          .meta p { margin: 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; vertical-align: top; }
+          th { background: #f1f5f9; text-transform: uppercase; letter-spacing: 0.12em; font-size: 9px; }
+        </style>
+      </head>
+      <body>
+        <h1>Expense Claims Report</h1>
+        <div class="meta">
+          <p><strong>Employee Name:</strong> ${employeeName}</p>
+          <p><strong>Month:</strong> ${monthLabel}</p>
+          <p><strong>Expenses:</strong> ${formatCurrency(total)}</p>
+          <p><strong>Date:</strong> ${reportDate}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee</th>
+              <th>Date</th>
+              <th>Working Area</th>
+              <th>Distance (km)</th>
+              <th>Amount</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || `<tr><td colspan="7">No records found.</td></tr>`}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
   };
 
   const generateExpensesReportHtml = () => {
@@ -1998,9 +2171,12 @@
         .domain(entries.map((d) => d.label))
         .range([padding.left, width - padding.right])
         .padding(0.25);
+      const maxValue = d3.max(entries, (d) =>
+        keys.length ? keys.reduce((sum, key) => sum + (d[key] || 0), 0) : 0
+      );
       const y = d3
         .scaleLinear()
-        .domain([0, d3.max(entries, (d) => keys.reduce((sum, key) => sum + d[key], 0)) || 1])
+        .domain([0, maxValue || 1])
         .nice()
         .range([height - padding.bottom, padding.top]);
 
@@ -2138,7 +2314,7 @@
       const date = new Date(`${item.month}-01T00:00:00`);
       const label = Number.isNaN(date.getTime())
         ? item.month
-        : date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+        : `${date.toLocaleDateString("en-IN", { month: "short" }).toLowerCase()}'${String(date.getFullYear()).slice(-2)}`;
       return { label, value: Number(item.total) || 0 };
     });
 
@@ -2148,7 +2324,7 @@
     renderPie("forms", formsByTopic, ["#a78bfa", "#f97316", "#22c55e", "#38bdf8"]);
     renderLine("forms-timeline", timeline, "#f97316");
     renderStackedBars("employees-dept", deptEntries, ["active", "inactive"], ["#22c55e", "#fb7185"]);
-    if (activityEntriesWithLabels.length) {
+    if (activityKeys.length) {
       renderStackedBars("activities-daily", activityEntriesWithLabels, activityLabels, activityPalette);
     } else {
       renderBars("activities-daily", [{ label: "No data", value: 0 }], "#cbd5f5");
@@ -2219,6 +2395,15 @@
         opt.value = emp._id;
         opt.textContent = emp.name;
         doctorImportEmployeeSelect.appendChild(opt);
+      });
+    }
+    if (claimEmployeeSelect) {
+      claimEmployeeSelect.innerHTML = "<option value=\"\">Select employee</option>";
+      cachedEmployees.forEach((emp) => {
+        const opt = document.createElement("option");
+        opt.value = emp._id;
+        opt.textContent = emp.name;
+        claimEmployeeSelect.appendChild(opt);
       });
     }
     renderCharts();
@@ -2674,7 +2859,6 @@
   if (getToken()) {
     showDashboard();
     setSection("overview");
-    setupThreeChart();
     initLocationMap();
     initSocket();
     if (routeDateInput) {
@@ -2682,6 +2866,10 @@
       routeDateInput.value = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
         .toISOString()
         .slice(0, 10);
+    }
+    if (claimMonthInput) {
+      const now = new Date();
+      claimMonthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     }
     loadAll().catch(() => {
       localStorage.removeItem(tokenKey);
@@ -2706,6 +2894,9 @@
         }
         if (target === "expenses") {
           loadExpenses().catch(() => setFeedback("Unable to load expenses.", true));
+        }
+        if (target === "manage-expenses") {
+          loadExpenseClaims().catch(() => setFeedback("Unable to load expense claims.", true));
         }
         if (target === "doctors") {
           loadDoctors().catch(() => setFeedback("Unable to load doctors.", true));
@@ -3359,6 +3550,91 @@
 
   if (expensesPrintButton) {
     expensesPrintButton.addEventListener("click", printExpensesReport);
+  }
+
+  if (claimMonthInput) {
+    claimMonthInput.addEventListener("change", () => {
+      loadExpenseClaims().catch(() => setFeedback("Unable to load expense claims.", true));
+    });
+  }
+
+  if (claimEmployeeSelect) {
+    claimEmployeeSelect.addEventListener("change", () => {
+      loadExpenseClaims().catch(() => setFeedback("Unable to load expense claims.", true));
+    });
+  }
+
+  if (claimLoadButton) {
+    claimLoadButton.addEventListener("click", () => {
+      loadExpenseClaims().catch(() => setFeedback("Unable to load expense claims.", true));
+    });
+  }
+
+  if (claimApproveButton) {
+    claimApproveButton.addEventListener("click", async () => {
+      const employeeId = claimEmployeeSelect?.value || "";
+      const month = getClaimsMonthKey();
+      if (!employeeId) {
+        setFeedback("Select an employee to approve expenses.", true);
+        return;
+      }
+      try {
+        await request("/admin/employee-expenses/approve", {
+          method: "POST",
+          body: JSON.stringify({ employeeId, month }),
+        });
+        setFeedback("Expenses approved and added to payroll.");
+        await loadExpenseClaims();
+        await loadExpenses();
+      } catch (error) {
+        setFeedback(error.message || "Unable to approve expenses.", true);
+      }
+    });
+  }
+
+  if (claimPrintButton) {
+    claimPrintButton.addEventListener("click", () => {
+      const html = generateExpenseClaimsPrintHtml();
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) return;
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    });
+  }
+
+  if (claimTableBody) {
+    claimTableBody.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const updateId = target.getAttribute("data-claim-update");
+      const deleteId = target.getAttribute("data-claim-delete");
+      try {
+        if (updateId) {
+          const row = target.closest("tr");
+          if (!row) return;
+          const payload = {};
+          row.querySelectorAll("[data-claim-field]").forEach((input) => {
+            if (!(input instanceof HTMLInputElement)) return;
+            payload[input.dataset.claimField] = input.value;
+          });
+          await request(`/admin/employee-expenses/${updateId}`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          setFeedback("Expense record updated.");
+          await loadExpenseClaims();
+        }
+        if (deleteId) {
+          await request(`/admin/employee-expenses/${deleteId}`, { method: "DELETE" });
+          setFeedback("Expense record deleted.");
+          await loadExpenseClaims();
+        }
+      } catch (error) {
+        setFeedback(error.message || "Unable to update expense record.", true);
+      }
+    });
   }
 })();
 

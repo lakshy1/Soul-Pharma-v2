@@ -6,6 +6,7 @@ const Activity = require("../models/Activity");
 const Otp = require("../models/Otp");
 const EmployeeLocation = require("../models/EmployeeLocation");
 const Notification = require("../models/Notification");
+const EmployeeExpense = require("../models/EmployeeExpense");
 const auth = require("../middleware/auth");
 const { hashPassword, verifyPassword, verifyOtp } = require("../utils/password");
 const { nextSequence, setSequence } = require("../utils/counter");
@@ -347,6 +348,92 @@ router.get("/activities/calendar", auth(["employee"]), async (req, res) => {
     return res.json({ days: Object.values(days) });
   } catch (error) {
     return res.status(500).json({ message: "Unable to fetch calendar" });
+  }
+});
+
+router.get("/expenses", auth(["employee"]), async (req, res) => {
+  try {
+    const days = Math.min(Number(req.query.days || 0), 90);
+    const fromQuery = String(req.query.from || "").trim();
+    const toQuery = String(req.query.to || "").trim();
+    let from = null;
+    let to = null;
+
+    if (days > 0) {
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - (days - 1));
+      from = start;
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      to = end;
+    } else {
+      if (fromQuery) {
+        const parsed = new Date(fromQuery);
+        if (!Number.isNaN(parsed.getTime())) {
+          parsed.setHours(0, 0, 0, 0);
+          from = parsed;
+        }
+      }
+      if (toQuery) {
+        const parsed = new Date(toQuery);
+        if (!Number.isNaN(parsed.getTime())) {
+          parsed.setHours(23, 59, 59, 999);
+          to = parsed;
+        }
+      }
+    }
+
+    if (!from && !to) {
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - 29);
+      from = start;
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      to = end;
+    }
+
+    const filter = { employee: req.user.id };
+    if (from || to) {
+      filter.expenseDate = {};
+      if (from) filter.expenseDate.$gte = from;
+      if (to) filter.expenseDate.$lte = to;
+    }
+
+    const expenses = await EmployeeExpense.find(filter).sort({ expenseDate: -1, createdAt: -1 });
+    return res.json({ expenses });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch expenses" });
+  }
+});
+
+router.post("/expenses", auth(["employee"]), async (req, res) => {
+  try {
+    const { amount, distance, date, remarks, workingArea } = req.body;
+    if (amount === undefined || amount === null || !date) {
+      return res.status(400).json({ message: "Amount and date are required" });
+    }
+    const expenseDate = new Date(date);
+    if (Number.isNaN(expenseDate.getTime())) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+    const month = expenseDate.toISOString().slice(0, 7);
+    const expense = await EmployeeExpense.create({
+      employee: req.user.id,
+      amount: Number(amount) || 0,
+      distance: Number(distance) || 0,
+      expenseDate,
+      month,
+      remarks: remarks || "",
+      workingArea: workingArea || "",
+      status: "pending",
+    });
+    return res.status(201).json({ expense });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to create expense" });
   }
 });
 

@@ -10,6 +10,7 @@ const Activity = require("../models/Activity");
 const EmployeeLocation = require("../models/EmployeeLocation");
 const Notification = require("../models/Notification");
 const Expense = require("../models/Expense");
+const EmployeeExpense = require("../models/EmployeeExpense");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
@@ -493,6 +494,101 @@ router.get("/expenses/report/pdf", auth(["admin"]), async (req, res) => {
     doc.end();
   } catch (error) {
     return res.status(500).json({ message: "Unable to generate expense report" });
+  }
+});
+
+router.get("/employee-expenses", auth(["admin"]), async (req, res) => {
+  try {
+    const employeeId = String(req.query.employeeId || "").trim();
+    const month = String(req.query.month || "").trim();
+    if (!month) {
+      return res.status(400).json({ message: "Month is required (YYYY-MM)." });
+    }
+    const filter = { month };
+    if (employeeId) {
+      filter.employee = employeeId;
+    }
+    const expenses = await EmployeeExpense.find(filter)
+      .populate("employee", "name employeeId territoryName designation")
+      .sort({ expenseDate: -1, createdAt: -1 });
+    return res.json({ expenses });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch employee expenses" });
+  }
+});
+
+router.patch("/employee-expenses/:id", auth(["admin"]), async (req, res) => {
+  try {
+    const { amount, distance, expenseDate, remarks, workingArea, status } = req.body;
+    const updates = {};
+    if (amount !== undefined) updates.amount = Number(amount) || 0;
+    if (distance !== undefined) updates.distance = Number(distance) || 0;
+    if (remarks !== undefined) updates.remarks = remarks || "";
+    if (workingArea !== undefined) updates.workingArea = workingArea || "";
+    if (status) updates.status = status;
+    if (expenseDate) {
+      const parsed = new Date(expenseDate);
+      if (Number.isNaN(parsed.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      updates.expenseDate = parsed;
+      updates.month = parsed.toISOString().slice(0, 7);
+    }
+    const expense = await EmployeeExpense.findByIdAndUpdate(req.params.id, updates, { new: true });
+    if (!expense) {
+      return res.status(404).json({ message: "Expense record not found" });
+    }
+    return res.json({ expense });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to update expense record" });
+  }
+});
+
+router.delete("/employee-expenses/:id", auth(["admin"]), async (req, res) => {
+  try {
+    const expense = await EmployeeExpense.findByIdAndDelete(req.params.id);
+    if (!expense) {
+      return res.status(404).json({ message: "Expense record not found" });
+    }
+    return res.json({ message: "Expense record deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to delete expense record" });
+  }
+});
+
+router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
+  try {
+    const { employeeId, month } = req.body;
+    if (!employeeId || !month) {
+      return res.status(400).json({ message: "Employee and month are required." });
+    }
+    const pendingExpenses = await EmployeeExpense.find({
+      employee: employeeId,
+      month,
+      status: "pending",
+    });
+    if (!pendingExpenses.length) {
+      return res.json({ approved: 0, total: 0 });
+    }
+    const total = pendingExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const approvedAt = new Date();
+    await EmployeeExpense.updateMany(
+      { _id: { $in: pendingExpenses.map((item) => item._id) } },
+      { $set: { status: "approved", approvedAt, approvedBy: req.user.id } }
+    );
+    const employee = await Employee.findById(employeeId);
+    const expense = await Expense.findOneAndUpdate(
+      { employee: employeeId, month },
+      {
+        $inc: { monthlyExpenses: total },
+        $set: { updatedBy: req.user.id, employee: employeeId, month },
+        $setOnInsert: { fixedSalary: Number(employee?.currentSalary) || 0 },
+      },
+      { new: true, upsert: true }
+    );
+    return res.json({ approved: pendingExpenses.length, total, expense });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to approve expenses" });
   }
 });
 
