@@ -766,7 +766,8 @@
     if (claimMonthInput) {
       if (!claimMonthInput.value) {
         const now = new Date();
-        const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const key = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
         claimMonthInput.value = key;
         return key;
       }
@@ -2869,7 +2870,8 @@
     }
     if (claimMonthInput) {
       const now = new Date();
-      claimMonthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      claimMonthInput.value = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
     }
     loadAll().catch(() => {
       localStorage.removeItem(tokenKey);

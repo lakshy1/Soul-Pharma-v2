@@ -60,7 +60,7 @@
     .expense-grid {
       display: grid;
       gap: 0.75rem;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(7, minmax(0, 1fr));
     }
     .expense-day {
       border-radius: 16px;
@@ -80,15 +80,24 @@
       box-shadow: 0 14px 26px rgba(214, 40, 57, 0.18);
     }
     .expense-day .day-label {
-      font-size: 0.8rem;
+      font-size: 1rem;
       font-weight: 700;
       color: #0f172a;
     }
     .expense-day .day-meta {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       color: #64748b;
       text-transform: uppercase;
       letter-spacing: 0.12em;
+    }
+    .expense-day .day-total {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-top: 0.35rem;
+    }
+    .expense-day .day-count {
+      font-size: 0.7rem;
+      color: #64748b;
     }
     .expense-chip {
       display: inline-flex;
@@ -103,30 +112,72 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
-    .expense-timeline {
-      display: none;
-      gap: 0.75rem;
-    }
-    .expense-timeline .expense-day {
-      display: flex;
+    .expense-status {
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-    }
-    .expense-day-total {
-      font-size: 1rem;
+      justify-content: center;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.6rem;
       font-weight: 700;
-      color: #0f172a;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 0.25rem;
+      border: 1px solid transparent;
     }
-    .expense-day-count {
-      font-size: 0.75rem;
-      color: #64748b;
+    .expense-status.is-pending {
+      background: rgba(251, 191, 36, 0.18);
+      color: #b45309;
+      border-color: rgba(251, 191, 36, 0.4);
+    }
+    .expense-status.is-approved {
+      background: rgba(34, 197, 94, 0.18);
+      color: #15803d;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+    .expense-status.is-mixed {
+      background: rgba(59, 130, 246, 0.18);
+      color: #1d4ed8;
+      border-color: rgba(59, 130, 246, 0.35);
     }
     @media (max-width: 768px) {
       .expense-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .expense-day {
+        padding: 0.8rem 0.6rem;
+        min-height: 96px;
+      }
+      .expense-day .day-label {
+        font-size: 1.1rem;
+      }
+      .expense-day .day-total {
+        font-size: 0.95rem;
+      }
+      .expense-panel {
         display: none;
       }
-      .expense-timeline {
-        display: grid;
+    }
+    .expense-popup {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.45);
+      padding: 1.25rem;
+    }
+    .expense-popup-card {
+      width: min(640px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+    }
+    .expense-popup.hidden {
+      display: none;
+    }
+    @media (min-width: 769px) {
+      .expense-popup {
+        display: none !important;
       }
     }
   </style>
@@ -450,13 +501,19 @@
               <p class="muted mt-1 text-sm">Log travel and field expenses for the last 30 days.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn-secondary !px-3 !py-2" data-expense-month-prev>Prev</button>
               <span class="focus-pill" data-expense-month-label>Last 30 Days</span>
+              <button type="button" class="btn-secondary !px-3 !py-2" data-expense-month-next>Next</button>
               <span class="expense-chip" data-expense-total-label>Total: â‚¹0</span>
             </div>
           </div>
           <div class="mt-4 expense-grid" data-expense-grid></div>
-          <div class="mt-4 expense-timeline" data-expense-timeline></div>
-          <div class="mt-5 grid gap-3 lg:grid-cols-2">
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.14em] text-slate-500">
+            <span class="expense-status is-pending">Pending</span>
+            <span class="expense-status is-approved">Approved</span>
+            <span class="expense-status is-mixed">Mixed</span>
+          </div>
+          <div class="mt-5 grid gap-3 lg:grid-cols-2 expense-panel">
             <div class="rounded-xl border border-white/30 p-4">
               <div class="flex items-center justify-between gap-3">
                 <div>
@@ -500,6 +557,44 @@
         </section>
       </section>
     </main>
+  </div>
+
+  <div class="expense-popup hidden" data-expense-popup>
+    <div class="expense-popup-card glass-card">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500" data-expense-popup-label>Date</p>
+          <h3 class="text-xl font-semibold">Add Expense</h3>
+        </div>
+        <button type="button" class="theme-btn" data-expense-popup-close aria-label="Close popup">&times;</button>
+      </div>
+      <div class="mt-4 grid gap-3" data-expense-popup-list></div>
+      <form class="mt-4 grid gap-3" data-expense-popup-form>
+        <div class="grid gap-3">
+          <div class="grid gap-2">
+            <label class="form-label">Amount (â‚¹)</label>
+            <input name="amount" type="number" min="0" step="1" class="form-input" placeholder="1200" required>
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Distance (km)</label>
+            <input name="distance" type="number" min="0" step="0.1" class="form-input" placeholder="18.5">
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Date</label>
+            <input name="date" type="date" class="form-input" data-expense-popup-date required>
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Working Area</label>
+            <input name="workingArea" type="text" class="form-input" placeholder="Central Zone">
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Remarks</label>
+            <textarea name="remarks" class="form-textarea" placeholder="Fuel, lunch, toll, local commute"></textarea>
+          </div>
+        </div>
+        <button type="submit" class="btn-brand w-full">Save Expense</button>
+      </form>
+    </div>
   </div>
 
   <div class="calendar-popup hidden" data-calendar-popup>
