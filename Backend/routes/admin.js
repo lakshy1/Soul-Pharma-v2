@@ -577,18 +577,7 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
       { $set: { status: "approved", approvedAt, approvedBy: req.user.id } }
     );
     const employee = await Employee.findById(employeeId);
-    const [yearStr, monthStr] = String(month).split("-");
-    let year = Number(yearStr);
-    let mon = Number(monthStr);
-    if (!year || !mon) {
-      return res.status(400).json({ message: "Invalid month format. Use YYYY-MM." });
-    }
-    mon += 1;
-    if (mon > 12) {
-      mon = 1;
-      year += 1;
-    }
-    const payrollMonth = `${year}-${String(mon).padStart(2, "0")}`;
+    const payrollMonth = String(month);
     const expense = await Expense.findOneAndUpdate(
       { employee: employeeId, month: payrollMonth },
       {
