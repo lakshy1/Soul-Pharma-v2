@@ -158,6 +158,30 @@
     feedback.classList.toggle("text-rose-500", isError);
   };
 
+  const setButtonLoading = (button, isLoading, loadingText = "Loading...") => {
+    if (!button) return;
+    const el = button;
+    if (isLoading) {
+      if (!el.dataset.originalText) {
+        el.dataset.originalText = el.textContent || "";
+      }
+      el.disabled = true;
+      el.setAttribute("aria-busy", "true");
+      el.classList.add("opacity-60", "cursor-wait");
+      if (el.textContent?.trim()) {
+        el.textContent = loadingText;
+      }
+    } else {
+      el.disabled = false;
+      el.removeAttribute("aria-busy");
+      el.classList.remove("opacity-60", "cursor-wait");
+      if (el.dataset.originalText) {
+        el.textContent = el.dataset.originalText;
+        delete el.dataset.originalText;
+      }
+    }
+  };
+
   const updateEmployeeEditUI = (isEditing, employeeName = "") => {
     if (!employeeEditIndicator || !employeeSubmitBtn || !employeeCancelBtn) return;
     
@@ -812,7 +836,18 @@
               <input type="text" class="claim-input" data-claim-field="remarks" value="${item.remarks || ""}">
             </td>
             <td class="p-3">
-              <span class="claim-pill ${statusClass}">${status}</span>
+              <div class="status-actions">
+                <button type="button" class="status-btn status-btn--reject" data-claim-status="rejected" data-claim-id="${item._id}" title="Reject">
+                  &#10005;
+                </button>
+                <button type="button" class="status-btn status-btn--approve" data-claim-status="approved" data-claim-id="${item._id}" title="Approve">
+                  &#10003;
+                </button>
+                <button type="button" class="status-btn status-btn--warn" data-claim-status="pending" data-claim-id="${item._id}" title="Pending">
+                  &#33;
+                </button>
+              </div>
+              <span class="claim-pill ${statusClass} mt-2 inline-flex">${status}</span>
             </td>
             <td class="p-3">
               <div class="flex flex-wrap gap-2">
@@ -3568,7 +3603,10 @@
 
   if (claimLoadButton) {
     claimLoadButton.addEventListener("click", () => {
-      loadExpenseClaims().catch(() => setFeedback("Unable to load expense claims.", true));
+      setButtonLoading(claimLoadButton, true, "Loading...");
+      loadExpenseClaims()
+        .catch(() => setFeedback("Unable to load expense claims.", true))
+        .finally(() => setButtonLoading(claimLoadButton, false));
     });
   }
 
@@ -3580,16 +3618,22 @@
         setFeedback("Select an employee to approve expenses.", true);
         return;
       }
+      setButtonLoading(claimApproveButton, true, "Approving...");
       try {
-        await request("/admin/employee-expenses/approve", {
+        const response = await request("/admin/employee-expenses/approve", {
           method: "POST",
           body: JSON.stringify({ employeeId, month }),
         });
-        setFeedback("Expenses approved and added to payroll.");
+        setFeedback("Expenses approved and added to next payroll month.");
+        if (expensesMonthInput && response?.payrollMonth) {
+          expensesMonthInput.value = response.payrollMonth;
+        }
         await loadExpenseClaims();
         await loadExpenses();
       } catch (error) {
         setFeedback(error.message || "Unable to approve expenses.", true);
+      } finally {
+        setButtonLoading(claimApproveButton, false);
       }
     });
   }
@@ -3612,8 +3656,11 @@
       if (!(target instanceof HTMLElement)) return;
       const updateId = target.getAttribute("data-claim-update");
       const deleteId = target.getAttribute("data-claim-delete");
+      const statusId = target.getAttribute("data-claim-id");
+      const nextStatus = target.getAttribute("data-claim-status");
       try {
         if (updateId) {
+          setButtonLoading(target, true, "Saving...");
           const row = target.closest("tr");
           if (!row) return;
           const payload = {};
@@ -3627,14 +3674,28 @@
           });
           setFeedback("Expense record updated.");
           await loadExpenseClaims();
+          setButtonLoading(target, false);
+        }
+        if (statusId && nextStatus) {
+          setButtonLoading(target, true, "...");
+          await request(`/admin/employee-expenses/${statusId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: nextStatus }),
+          });
+          setFeedback(`Status set to ${nextStatus}.`);
+          await loadExpenseClaims();
+          setButtonLoading(target, false);
         }
         if (deleteId) {
+          setButtonLoading(target, true, "Deleting...");
           await request(`/admin/employee-expenses/${deleteId}`, { method: "DELETE" });
           setFeedback("Expense record deleted.");
           await loadExpenseClaims();
+          setButtonLoading(target, false);
         }
       } catch (error) {
         setFeedback(error.message || "Unable to update expense record.", true);
+        setButtonLoading(target, false);
       }
     });
   }

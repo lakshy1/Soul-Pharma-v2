@@ -110,6 +110,30 @@
     feedback.classList.toggle("hidden", !message);
   };
 
+  const setButtonLoading = (button, isLoading, loadingText = "Saving...") => {
+    if (!button) return;
+    const el = button;
+    if (isLoading) {
+      if (!el.dataset.originalText) {
+        el.dataset.originalText = el.textContent || "";
+      }
+      el.disabled = true;
+      el.setAttribute("aria-busy", "true");
+      el.classList.add("opacity-60", "cursor-wait");
+      if (el.textContent?.trim()) {
+        el.textContent = loadingText;
+      }
+    } else {
+      el.disabled = false;
+      el.removeAttribute("aria-busy");
+      el.classList.remove("opacity-60", "cursor-wait");
+      if (el.dataset.originalText) {
+        el.textContent = el.dataset.originalText;
+        delete el.dataset.originalText;
+      }
+    }
+  };
+
   const setSection = (id) => {
     sections.forEach((section) => {
       section.classList.toggle("hidden", section.dataset.empSection !== id);
@@ -673,8 +697,24 @@
         const isActive = dateKey === selectedExpenseDate;
         const hasPending = entries.some((item) => (item.status || "pending") === "pending");
         const hasApproved = entries.some((item) => (item.status || "pending") === "approved");
-        const statusLabel = hasPending && hasApproved ? "mixed" : hasPending ? "pending" : hasApproved ? "approved" : "";
-        const statusText = statusLabel ? statusLabel : "";
+        const hasRejected = entries.some((item) => (item.status || "pending") === "rejected");
+        const statusLabel = hasRejected
+          ? "rejected"
+          : hasPending && hasApproved
+          ? "mixed"
+          : hasPending
+          ? "pending"
+          : hasApproved
+          ? "approved"
+          : "";
+        const statusText =
+          statusLabel === "approved"
+            ? "✓"
+            : statusLabel === "rejected"
+            ? "✕"
+            : statusLabel === "pending" || statusLabel === "mixed"
+            ? "!"
+            : "";
         return `
           <button type="button" class="expense-day ${isActive ? "is-active" : ""}" data-expense-day="${dateKey}">
             <div class="day-meta">${day.toLocaleDateString("en-IN", { weekday: "short" })}</div>
@@ -1172,6 +1212,8 @@
       event.preventDefault();
       const formData = new FormData(expenseForm);
       const payload = Object.fromEntries(formData.entries());
+      const submitBtn = expenseForm.querySelector("button[type=\"submit\"]");
+      setButtonLoading(submitBtn, true, "Submitting...");
       try {
         await request("/employee/expenses", {
           method: "POST",
@@ -1179,12 +1221,14 @@
         });
         expenseForm.reset();
         if (expenseDateInput) {
-        expenseDateInput.value = toLocalDateKey(new Date());
+          expenseDateInput.value = toLocalDateKey(new Date());
         }
         await loadExpenses();
         setFeedback("Expense submitted.");
       } catch (error) {
         setFeedback(error.message || "Unable to submit expense.", true);
+      } finally {
+        setButtonLoading(submitBtn, false);
       }
     });
   }
@@ -1194,6 +1238,8 @@
       event.preventDefault();
       const formData = new FormData(expensePopupForm);
       const payload = Object.fromEntries(formData.entries());
+      const submitBtn = expensePopupForm.querySelector("button[type=\"submit\"]");
+      setButtonLoading(submitBtn, true, "Submitting...");
       try {
         await request("/employee/expenses", {
           method: "POST",
@@ -1205,6 +1251,8 @@
         setFeedback("Expense submitted.");
       } catch (error) {
         setFeedback(error.message || "Unable to submit expense.", true);
+      } finally {
+        setButtonLoading(submitBtn, false);
       }
     });
   }

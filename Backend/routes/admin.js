@@ -577,16 +577,21 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
       { $set: { status: "approved", approvedAt, approvedBy: req.user.id } }
     );
     const employee = await Employee.findById(employeeId);
+    const [yearStr, monthStr] = String(month).split("-");
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+    const payrollMonthDate = new Date(year, monthIndex + 1, 1);
+    const payrollMonth = `${payrollMonthDate.getFullYear()}-${String(payrollMonthDate.getMonth() + 1).padStart(2, "0")}`;
     const expense = await Expense.findOneAndUpdate(
-      { employee: employeeId, month },
+      { employee: employeeId, month: payrollMonth },
       {
         $inc: { monthlyExpenses: total },
-        $set: { updatedBy: req.user.id, employee: employeeId, month },
+        $set: { updatedBy: req.user.id, employee: employeeId, month: payrollMonth },
         $setOnInsert: { fixedSalary: Number(employee?.currentSalary) || 0 },
       },
       { new: true, upsert: true }
     );
-    return res.json({ approved: pendingExpenses.length, total, expense });
+    return res.json({ approved: pendingExpenses.length, total, expense, payrollMonth });
   } catch (error) {
     return res.status(500).json({ message: "Unable to approve expenses" });
   }
