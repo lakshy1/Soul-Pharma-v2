@@ -847,7 +847,14 @@
                   &#33;
                 </button>
               </div>
-              <span class="claim-pill ${statusClass} mt-2 inline-flex">${status}</span>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <span class="claim-pill ${statusClass} inline-flex">${status}</span>
+                ${
+                  item.payrollPosted
+                    ? `<span class="sync-pill" title="Sync to Payroll">Synced</span>`
+                    : `<span class="sync-pill is-muted" title="Sync to Payroll">Not Synced</span>`
+                }
+              </div>
             </td>
             <td class="p-3">
               <div class="flex flex-wrap gap-2">

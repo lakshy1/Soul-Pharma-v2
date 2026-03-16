@@ -521,6 +521,12 @@ router.patch("/employee-expenses/:id", auth(["admin"]), async (req, res) => {
   try {
     const { amount, distance, expenseDate, remarks, workingArea, status } = req.body;
     const updates = {};
+    const touchesValue =
+      amount !== undefined ||
+      distance !== undefined ||
+      remarks !== undefined ||
+      workingArea !== undefined ||
+      expenseDate !== undefined;
     if (amount !== undefined) updates.amount = Number(amount) || 0;
     if (distance !== undefined) updates.distance = Number(distance) || 0;
     if (remarks !== undefined) updates.remarks = remarks || "";
@@ -533,6 +539,12 @@ router.patch("/employee-expenses/:id", auth(["admin"]), async (req, res) => {
       }
       updates.expenseDate = parsed;
       updates.month = parsed.toISOString().slice(0, 7);
+    }
+    if (touchesValue && !status) {
+      updates.status = "pending";
+    }
+    if (touchesValue) {
+      updates.payrollPosted = false;
     }
     const expense = await EmployeeExpense.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!expense) {
@@ -566,7 +578,6 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
       employee: employeeId,
       month,
       status: { $in: ["pending", "approved"] },
-      payrollPosted: false,
     });
     if (!toPost.length) {
       return res.json({ approved: 0, total: 0 });
@@ -582,8 +593,12 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
     const expense = await Expense.findOneAndUpdate(
       { employee: employeeId, month: payrollMonth },
       {
-        $inc: { monthlyExpenses: total },
-        $set: { updatedBy: req.user.id, employee: employeeId, month: payrollMonth },
+        $set: {
+          monthlyExpenses: total,
+          updatedBy: req.user.id,
+          employee: employeeId,
+          month: payrollMonth,
+        },
         $setOnInsert: { fixedSalary: Number(employee?.currentSalary) || 0 },
       },
       { new: true, upsert: true }
