@@ -814,7 +814,9 @@
       .map((item) => {
         const dateKey = new Date(item.expenseDate || item.date || item.createdAt).toISOString().slice(0, 10);
         const [dyear, dmon, dday] = dateKey.split("-");
-        const formattedDate = `${dday}/${dmon}/${dyear}`;
+        const _dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        const _dayName = _dayNames[new Date(item.expenseDate || item.date || item.createdAt).getDay()];
+        const formattedDate = `${dday}/${dmon}/${dyear} - ${_dayName}`;
         const status = item.status || "pending";
         const employeeName = item.employee?.name || item.employeeName || "Employee";
         const statusClass =
@@ -822,8 +824,8 @@
         return `
           <tr class="border-t border-white/30">
             <td class="p-3">
-              <div class="text-sm font-semibold mb-1">${formattedDate}</div>
-              <input type="date" class="claim-input" data-claim-field="expenseDate" value="${dateKey}">
+              <div class="text-sm font-semibold">${formattedDate}</div>
+              <input type="hidden" class="claim-input" data-claim-field="expenseDate" value="${dateKey}">
             </td>
             <td class="p-3 font-semibold">${employeeName}</td>
             <td class="p-3">
