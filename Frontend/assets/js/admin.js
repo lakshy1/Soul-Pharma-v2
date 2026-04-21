@@ -813,6 +813,8 @@
     const rows = cachedExpenseClaims
       .map((item) => {
         const dateKey = new Date(item.expenseDate || item.date || item.createdAt).toISOString().slice(0, 10);
+        const [dyear, dmon, dday] = dateKey.split("-");
+        const formattedDate = `${dday}/${dmon}/${dyear}`;
         const status = item.status || "pending";
         const employeeName = item.employee?.name || item.employeeName || "Employee";
         const statusClass =
@@ -820,6 +822,7 @@
         return `
           <tr class="border-t border-white/30">
             <td class="p-3">
+              <div class="text-sm font-semibold mb-1">${formattedDate}</div>
               <input type="date" class="claim-input" data-claim-field="expenseDate" value="${dateKey}">
             </td>
             <td class="p-3 font-semibold">${employeeName}</td>
@@ -906,7 +909,8 @@
     const reportDate = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
     const rows = cachedExpenseClaims
       .map((item, idx) => {
-        const dateLabel = new Date(item.expenseDate || item.date || item.createdAt).toLocaleDateString("en-IN");
+        const _pd = new Date(item.expenseDate || item.date || item.createdAt).toISOString().slice(0, 10).split("-");
+        const dateLabel = `${_pd[2]}/${_pd[1]}/${_pd[0]}`;
         return `
           <tr>
             <td>${idx + 1}</td>
