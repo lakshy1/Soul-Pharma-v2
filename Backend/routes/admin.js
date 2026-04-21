@@ -519,16 +519,18 @@ router.get("/employee-expenses", auth(["admin"]), async (req, res) => {
 
 router.patch("/employee-expenses/:id", auth(["admin"]), async (req, res) => {
   try {
-    const { amount, distance, expenseDate, remarks, workingArea, status } = req.body;
+    const { amount, distance, expenseDate, remarks, workingArea, travelAllowance, status } = req.body;
     const updates = {};
     const touchesValue =
       amount !== undefined ||
       distance !== undefined ||
+      travelAllowance !== undefined ||
       remarks !== undefined ||
       workingArea !== undefined ||
       expenseDate !== undefined;
     if (amount !== undefined) updates.amount = Number(amount) || 0;
     if (distance !== undefined) updates.distance = Number(distance) || 0;
+    if (travelAllowance !== undefined) updates.travelAllowance = Number(travelAllowance) || 0;
     if (remarks !== undefined) updates.remarks = remarks || "";
     if (workingArea !== undefined) updates.workingArea = workingArea || "";
     if (status) updates.status = status;
@@ -582,7 +584,7 @@ router.post("/employee-expenses/approve", auth(["admin"]), async (req, res) => {
     if (!toPost.length) {
       return res.json({ approved: 0, total: 0 });
     }
-    const total = toPost.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const total = toPost.reduce((sum, item) => sum + (Number(item.amount) || 0) + (Number(item.travelAllowance) || 0), 0);
     const approvedAt = new Date();
     await EmployeeExpense.updateMany(
       { _id: { $in: toPost.map((item) => item._id) } },

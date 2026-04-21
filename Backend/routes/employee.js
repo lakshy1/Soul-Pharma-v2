@@ -412,7 +412,7 @@ router.get("/expenses", auth(["employee"]), async (req, res) => {
 
 router.post("/expenses", auth(["employee"]), async (req, res) => {
   try {
-    const { amount, distance, date, remarks, workingArea } = req.body;
+    const { amount, distance, date, remarks, workingArea, travelAllowance } = req.body;
     if (amount === undefined || amount === null || !date) {
       return res.status(400).json({ message: "Amount and date are required" });
     }
@@ -425,6 +425,7 @@ router.post("/expenses", auth(["employee"]), async (req, res) => {
       employee: req.user.id,
       amount: Number(amount) || 0,
       distance: Number(distance) || 0,
+      travelAllowance: Number(travelAllowance) || 0,
       expenseDate,
       month,
       remarks: remarks || "",

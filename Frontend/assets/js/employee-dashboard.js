@@ -762,6 +762,7 @@
       : entries
           .map((item) => {
             const distance = Number(item.distance) || 0;
+            const travelAllowance = Number(item.travelAllowance) || 0;
             const area = item.workingArea || "Working area";
             const time = item.expenseDate
               ? new Date(item.expenseDate).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
@@ -769,7 +770,7 @@
             return `
               <div class="activity-card">
                 <div>
-                  <p class="activity-title">${formatCurrency(item.amount)}</p>
+                  <p class="activity-title">${formatCurrency(item.amount)}${travelAllowance ? ` <span class="muted text-sm font-normal">+ ${formatCurrency(travelAllowance)} travel</span>` : ""}</p>
                   <p class="muted text-xs">${area}${time ? ` â€¢ ${time}` : ""}</p>
                   ${item.remarks ? `<p class="muted text-sm mt-1">${item.remarks}</p>` : ""}
                 </div>

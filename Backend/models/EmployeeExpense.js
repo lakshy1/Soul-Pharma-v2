@@ -8,6 +8,7 @@ const employeeExpenseSchema = new mongoose.Schema(
     expenseDate: { type: Date, required: true, index: true },
     month: { type: String, required: true, index: true },
     workingArea: { type: String, default: "" },
+    travelAllowance: { type: Number, default: 0 },
     remarks: { type: String, default: "" },
     status: {
       type: String,

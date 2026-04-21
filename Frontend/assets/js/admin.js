@@ -804,7 +804,7 @@
   const renderExpenseClaims = () => {
     if (!claimTableBody) return;
     if (!cachedExpenseClaims.length) {
-      claimTableBody.innerHTML = "<tr><td class=\"p-4 muted\" colspan=\"8\">No expense records found.</td></tr>";
+      claimTableBody.innerHTML = "<tr><td class=\"p-4 muted\" colspan=\"9\">No expense records found.</td></tr>";
       if (claimSummaryTotal) claimSummaryTotal.textContent = formatCurrency(0);
       if (claimSummaryPending) claimSummaryPending.textContent = formatCurrency(0);
       if (claimSummaryApproved) claimSummaryApproved.textContent = formatCurrency(0);
@@ -836,6 +836,9 @@
             </td>
             <td class="p-3">
               <input type="number" min="0" step="1" class="claim-input" data-claim-field="amount" value="${Number(item.amount) || 0}">
+            </td>
+            <td class="p-3">
+              <input type="number" min="0" step="1" class="claim-input" data-claim-field="travelAllowance" value="${Number(item.travelAllowance) || 0}">
             </td>
             <td class="p-3">
               <input type="text" class="claim-input" data-claim-field="remarks" value="${item.remarks || ""}">
@@ -875,7 +878,7 @@
 
     const totals = cachedExpenseClaims.reduce(
       (acc, item) => {
-        const amount = Number(item.amount) || 0;
+        const amount = (Number(item.amount) || 0) + (Number(item.travelAllowance) || 0);
         acc.total += amount;
         if ((item.status || "pending") === "approved") {
           acc.approved += amount;
@@ -907,7 +910,7 @@
     const employeeId = claimEmployeeSelect?.value || "";
     const employeeName =
       cachedEmployees.find((emp) => emp._id === employeeId)?.name || (employeeId ? "Employee" : "All Employees");
-    const total = cachedExpenseClaims.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const total = cachedExpenseClaims.reduce((sum, item) => sum + (Number(item.amount) || 0) + (Number(item.travelAllowance) || 0), 0);
     const reportDate = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
     const rows = cachedExpenseClaims
       .map((item, idx) => {
@@ -921,6 +924,7 @@
             <td>${item.workingArea || "-"}</td>
             <td>${Number(item.distance) || 0}</td>
             <td>${formatCurrency(item.amount)}</td>
+            <td>${Number(item.travelAllowance) ? formatCurrency(item.travelAllowance) : "-"}</td>
             <td>${item.remarks || "-"}</td>
           </tr>
         `;
@@ -961,11 +965,12 @@
               <th>Working Area</th>
               <th>Distance (km)</th>
               <th>Amount</th>
+              <th>Travel Allowance</th>
               <th>Remarks</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || `<tr><td colspan="7">No records found.</td></tr>`}
+            ${rows || `<tr><td colspan="8">No records found.</td></tr>`}
           </tbody>
         </table>
       </body>
