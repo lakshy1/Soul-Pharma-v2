@@ -1,0 +1,31 @@
+{
+  "appId": "com.soulpharma.app",
+  "appName": "Soul Pharma",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "initialFocus": true,
+    "backgroundColor": "#0a0f1e"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#0a0f1e",
+      "showSpinner": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_soul",
+      "iconColor": "#d62839",
+      "sound": "default"
+    },
+    "Geolocation": {
+      "enableHighAccuracy": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a0f1e"
+    }
+  }
+}

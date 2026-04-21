@@ -1,4 +1,45 @@
 (() => {
+  // ── Soul Loader ───────────────────────────────────────────
+  const _slEl    = document.getElementById("soul-loader");
+  const _slFill  = document.getElementById("sl-fill");
+  const _slPct   = document.getElementById("sl-pct");
+  const _slMsg   = document.getElementById("sl-msg");
+  let   _slCur   = 0;
+  let   _slCreep = null;
+
+  const _slSetUI = (pct) => {
+    const p = Math.min(100, Math.max(0, pct));
+    if (_slFill) _slFill.style.width = p + "%";
+    if (_slPct)  _slPct.textContent  = Math.round(p) + "%";
+  };
+
+  const slSnap = (pct, msg) => {
+    clearInterval(_slCreep);
+    _slCur = pct;
+    _slSetUI(pct);
+    if (msg && _slMsg) _slMsg.textContent = msg;
+  };
+
+  const slCreep = (cap, rate = 0.055) => {
+    clearInterval(_slCreep);
+    _slCreep = setInterval(() => {
+      if (_slCur < cap) {
+        _slCur = Math.min(cap, _slCur + rate);
+        _slSetUI(_slCur);
+      } else {
+        clearInterval(_slCreep);
+      }
+    }, 80);
+  };
+
+  const slHide = () => {
+    clearInterval(_slCreep);
+    if (!_slEl) return;
+    _slEl.classList.add("sl-done");
+    setTimeout(() => { if (_slEl.parentNode) _slEl.parentNode.removeChild(_slEl); }, 700);
+  };
+  // ─────────────────────────────────────────────────────────
+
   const tokenKey = "soul-employee-token";
   const apiBase = window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
   const token = localStorage.getItem(tokenKey);
@@ -1336,18 +1377,39 @@
 
   const init = async () => {
     try {
+      slCreep(18, 0.055);
+      if (_slMsg) _slMsg.textContent = "Connecting to server";
+
       await loadProfile();
+      slSnap(26, "Profile loaded");
+
       await loadDoctors();
+      slSnap(44, "Doctor records synced");
+
       await loadActivities();
+      slSnap(60, "Activities loaded");
+
       await loadCalendar();
+      slSnap(74, "Calendar built");
+
       await loadExpenses();
+      slSnap(84, "Expenses fetched");
+
       loadQueue();
+
       await loadNotifications();
+      slSnap(92, "Notifications ready");
+
       initSocket();
+      slSnap(97, "Connecting live updates");
+
       requestPermissions();
       flushQueue();
       const monthVisits = Object.values(calendarCache).reduce((sum, day) => sum + (day.count || 0), 0);
       if (statVisits) statVisits.textContent = String(monthVisits);
+
+      slSnap(100, "All set — launching");
+      setTimeout(slHide, 900);
     } catch (error) {
       localStorage.removeItem(tokenKey);
       window.location.href = "Auth.html";

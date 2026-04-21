@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MERGE THIS into android/app/src/main/AndroidManifest.xml
+  After running: npx cap add android && npx cap sync
+
+  Steps:
+  1. Open android/app/src/main/AndroidManifest.xml
+  2. Add the <uses-permission> blocks inside <manifest>
+  3. Add the <service> and <receiver> blocks inside <application>
+  4. Copy the four .kt files into the correct package directory (see below)
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.soulpharma.app">
+
+    <!-- ══════════════════════════════════════════════
+         PERMISSIONS  (add all of these)
+    ══════════════════════════════════════════════ -->
+
+    <!-- Location (precise) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Background location — required for Android 10+ to track in background -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Foreground service + location type declaration (Android 14+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Push / local notifications (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Restart after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Network -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Wake lock — keep CPU alive while sending location -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- ══════════════════════════════════════════════
+         APPLICATION  (add inside existing <application> tag)
+    ══════════════════════════════════════════════ -->
+    <application>
+
+        <!-- Foreground tracking service -->
+        <service
+            android:name=".LocationForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <!-- Boot receiver — restarts service on device reboot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

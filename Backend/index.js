@@ -28,6 +28,10 @@ const allowedOrigins = [
   "http://127.0.0.1:5500",
   "https://soulpharma.netlify.app",
   "https://soulpharma.netlify.app/",
+  // Capacitor Android (androidScheme: "https")
+  "https://localhost",
+  "capacitor://localhost",
+  "http://localhost",
   process.env.FRONTEND_URL || "http://localhost:3000"
 ];
 
