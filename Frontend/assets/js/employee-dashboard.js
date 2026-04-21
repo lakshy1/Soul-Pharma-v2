@@ -1177,11 +1177,9 @@
   const openExpensePopup = () => {
     if (!expensePopup) return;
     if (expensePopupLabel) {
-      expensePopupLabel.textContent = new Date(`${selectedExpenseDate}T00:00:00`).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
+      const _d = new Date(`${selectedExpenseDate}T00:00:00`);
+      const _dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      expensePopupLabel.textContent = `${_d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} — ${_dayNames[_d.getDay()]}`;
     }
     if (expensePopupDateInput) {
       expensePopupDateInput.value = selectedExpenseDate;

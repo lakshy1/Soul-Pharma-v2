@@ -964,7 +964,7 @@
               <th>Date</th>
               <th>Working Area</th>
               <th>Distance (km)</th>
-              <th>Amount</th>
+              <th>Amount (DA)</th>
               <th>Travel Allowance</th>
               <th>Remarks</th>
             </tr>

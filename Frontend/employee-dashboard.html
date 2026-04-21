@@ -159,9 +159,9 @@
       .expense-day .day-total {
         font-size: 0.95rem;
       }
-      .expense-panel {
-        display: none;
-      }
+    }
+    .expense-panel {
+      display: none;
     }
     .expense-popup {
       position: fixed;
@@ -173,17 +173,17 @@
       padding: 1.25rem;
     }
     .expense-popup-card {
-      width: min(640px, 100%);
-      max-height: 88vh;
-      overflow: auto;
+      width: min(720px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
     }
     .expense-popup.hidden {
       display: none;
     }
-    @media (min-width: 769px) {
-      .expense-popup {
-        display: none !important;
-      }
+    .expense-popup-divider {
+      border: none;
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      margin: 0.25rem 0;
     }
   </style>
 </head>
@@ -509,7 +509,7 @@
               <button type="button" class="btn-secondary !px-3 !py-2" data-expense-month-prev>Prev</button>
               <span class="focus-pill" data-expense-month-label>Last 30 Days</span>
               <button type="button" class="btn-secondary !px-3 !py-2" data-expense-month-next>Next</button>
-              <span class="expense-chip" data-expense-total-label>Total: â‚¹0</span>
+              <span class="expense-chip" data-expense-total-label>Total: &#8377;0</span>
             </div>
           </div>
           <div class="mt-4 expense-grid" data-expense-grid></div>
@@ -526,7 +526,7 @@
                   <p class="text-sm uppercase tracking-[0.14em] text-rose-500" data-expense-selected-label>Selected Day</p>
                   <p class="text-lg font-semibold" data-expense-selected-date>â€”</p>
                 </div>
-                <span class="focus-pill" data-expense-selected-total>â‚¹0</span>
+                <span class="focus-pill" data-expense-selected-total>&#8377;0</span>
               </div>
               <div class="mt-3 grid gap-3" data-expense-day-list></div>
             </div>
@@ -536,7 +536,7 @@
               <form class="mt-4 grid gap-3" data-expense-form>
                 <div class="grid gap-3 md:grid-cols-2">
                   <div class="grid gap-2">
-                    <label class="form-label">Amount (â‚¹)</label>
+                    <label class="form-label">Amount (DA) (&#8377;)</label>
                     <input name="amount" type="number" min="0" step="1" class="form-input" placeholder="1200" required>
                   </div>
                   <div class="grid gap-2">
@@ -573,16 +573,18 @@
     <div class="expense-popup-card glass-card">
       <div class="flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500" data-expense-popup-label>Date</p>
-          <h3 class="text-xl font-semibold">Add Expense</h3>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">Expense</p>
+          <h3 class="text-xl font-semibold" data-expense-popup-label>Select a date</h3>
         </div>
         <button type="button" class="theme-btn" data-expense-popup-close aria-label="Close popup">&times;</button>
       </div>
-      <div class="mt-4 grid gap-3" data-expense-popup-list></div>
-      <form class="mt-4 grid gap-3" data-expense-popup-form>
-        <div class="grid gap-3">
+      <div class="mt-3 grid gap-2" data-expense-popup-list></div>
+      <hr class="expense-popup-divider mt-3">
+      <p class="mt-3 text-sm font-semibold uppercase tracking-[0.13em] text-rose-500">Add Expense</p>
+      <form class="mt-2 grid gap-3" data-expense-popup-form>
+        <div class="grid gap-3 sm:grid-cols-2">
           <div class="grid gap-2">
-            <label class="form-label">Amount (â‚¹)</label>
+            <label class="form-label">Amount (DA) (&#8377;)</label>
             <input name="amount" type="number" min="0" step="1" class="form-input" placeholder="1200" required>
           </div>
           <div class="grid gap-2">
@@ -601,12 +603,15 @@
             <label class="form-label">Travel Allowance (&#8377;) <span class="muted text-xs">(optional)</span></label>
             <input name="travelAllowance" type="number" min="0" step="1" class="form-input" placeholder="0">
           </div>
-          <div class="grid gap-2">
+          <div class="grid gap-2 sm:col-span-2">
             <label class="form-label">Remarks</label>
             <textarea name="remarks" class="form-textarea" placeholder="Fuel, lunch, toll, local commute"></textarea>
           </div>
         </div>
-        <button type="submit" class="btn-brand w-full">Save Expense</button>
+        <div class="flex gap-3">
+          <button type="submit" class="btn-brand flex-1">Save Expense</button>
+          <button type="button" class="btn-secondary !px-6" data-expense-popup-close>Cancel</button>
+        </div>
       </form>
     </div>
   </div>
