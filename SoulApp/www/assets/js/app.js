@@ -227,8 +227,27 @@
       await storage.set(TOKEN_KEY, data.token);
     },
     async logout() {
+      // Close every overlay so nothing lingers over the login screen
+      document.getElementById("exit-dialog")?.classList.add("hidden");
+      document.getElementById("product-preview")?.classList.add("hidden");
+      document.getElementById("sheet-calendar")?.classList.add("hidden");
+      document.querySelectorAll(".bottom-sheet").forEach(s => s.classList.add("hidden"));
+      // Dismiss any toast
+      clearTimeout(_toastTimer);
+      if (toastEl) toastEl.className = "hidden";
+
+      // Animate dashboard sliding away
+      const dash = document.getElementById("screen-dash");
+      if (dash && !dash.classList.contains("hidden")) {
+        dash.style.animation = "screen-exit-down .32s ease forwards";
+        dash.style.pointerEvents = "none";
+        await new Promise(r => setTimeout(r, 310));
+        dash.style.animation = "";
+        dash.style.pointerEvents = "";
+      }
+
+      // Wipe auth state and caches
       await storage.remove(TOKEN_KEY);
-      // Clear caches
       localStorage.removeItem("soul-cache-employee");
       localStorage.removeItem("soul-cache-doctors");
       localStorage.removeItem("soul-cache-activities");
@@ -236,7 +255,29 @@
       state.token = null; state.employee = null;
       tracker.stop();
       if (_watchId !== null) { try { await cap("Geolocation")?.clearWatch({ id: _watchId }); } catch {} _watchId = null; }
-      showScreen("login");
+
+      // Reset login form to a clean state
+      const errEl = document.getElementById("login-error");
+      const btn   = document.getElementById("login-btn");
+      if (errEl) errEl.textContent = "";
+      if (btn)   { btn.disabled = false; btn.textContent = "Login"; }
+
+      // Pre-fill saved credentials
+      const savedEmail = localStorage.getItem("soul-saved-email") || "";
+      const savedPass  = localStorage.getItem("soul-saved-pass")  || "";
+      const emailInput = document.getElementById("inp-email");
+      const passInput  = document.getElementById("inp-pass");
+      if (emailInput && savedEmail) emailInput.value = savedEmail;
+      if (passInput  && savedPass)  passInput.value  = savedPass;
+
+      // Show login with entrance animation
+      document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
+      const loginScr = document.getElementById("screen-login");
+      if (loginScr) {
+        loginScr.classList.remove("hidden");
+        loginScr.style.animation = "screen-enter-up .38s cubic-bezier(0.16,1,0.3,1) forwards";
+        setTimeout(() => { loginScr.style.animation = ""; }, 400);
+      }
     },
     async verifyToken(token) {
       state.token = token;
@@ -913,10 +954,18 @@
 
   // ── Login screen ───────────────────────────────────────
   const bindLoginScreen = () => {
-    const form  = document.getElementById("login-form");
-    const errEl = document.getElementById("login-error");
-    const btn   = document.getElementById("login-btn");
+    const form      = document.getElementById("login-form");
+    const errEl     = document.getElementById("login-error");
+    const btn       = document.getElementById("login-btn");
+    const emailInput = document.getElementById("inp-email");
+    const passInput  = document.getElementById("inp-pass");
     if (!form) return;
+
+    // Pre-fill on first bind (fresh app open)
+    const savedEmail = localStorage.getItem("soul-saved-email") || "";
+    const savedPass  = localStorage.getItem("soul-saved-pass")  || "";
+    if (emailInput && savedEmail) emailInput.value = savedEmail;
+    if (passInput  && savedPass)  passInput.value  = savedPass;
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -925,12 +974,15 @@
       loader.show("Connecting to server");
       loader.creep(35, 0.06);
 
+      const email = emailInput.value.trim();
+      const pass  = passInput.value;
+
       try {
         loader.snap(40, "Verifying credentials");
-        await auth.login(
-          document.getElementById("inp-email").value.trim(),
-          document.getElementById("inp-pass").value
-        );
+        await auth.login(email, pass);
+        // Persist credentials for next login
+        localStorage.setItem("soul-saved-email", email);
+        localStorage.setItem("soul-saved-pass",  pass);
         loader.snap(55, "Login successful");
         await goToPermissionsOrDash();
       } catch (err) {
@@ -976,9 +1028,7 @@
     });
 
     // Logout
-    document.getElementById("btn-logout")?.addEventListener("click", async () => {
-      if (confirm("Sign out of Soul Pharma?")) await auth.logout();
-    });
+    document.getElementById("btn-logout")?.addEventListener("click", () => auth.logout());
 
     // Navbar: calendar icon
     document.getElementById("btn-cal")?.addEventListener("click", openCalendar);
@@ -1211,7 +1261,7 @@
     } catch {
       await storage.remove(TOKEN_KEY);
       loader.snap(100, "Session expired");
-      setTimeout(() => { loader.hide(); showScreen("login"); toast("Session expired. Please login again.", true); }, 500);
+      setTimeout(() => { loader.hide(); showScreen("login"); }, 500);
     }
   };
 
