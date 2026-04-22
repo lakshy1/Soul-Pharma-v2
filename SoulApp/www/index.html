@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0a0f1e">
   <title>Soul Pharma</title>
-  <link rel="icon" href="assets/images/SoulPharma.png">
+  <link rel="icon" href="assets/images/soul.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap">
   <style>
@@ -70,7 +70,7 @@
       0%,100% { box-shadow: 0 0 0 0 rgba(214,40,57,0.35), 0 0 24px rgba(214,40,57,0.1); }
       50%      { box-shadow: 0 0 0 14px rgba(214,40,57,0), 0 0 48px rgba(214,40,57,0.22); }
     }
-    .sl-logo { width: 54px; height: 54px; object-fit: contain; border-radius: 50%; }
+    .sl-logo { width: 62px; height: 62px; object-fit: cover; border-radius: 50%; padding: 4px; }
     .sl-brand { font-family: 'Sora',sans-serif; font-size: 1.75rem; font-weight: 800; color: #fff; letter-spacing: 0.06em; }
     .sl-sub { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.26em; text-transform: uppercase; color: var(--accent); margin-top: 0.3rem; }
     .sl-pct { font-size: 3.8rem; font-weight: 800; color: #fff; line-height: 1; margin: 2rem 0 1rem; font-variant-numeric: tabular-nums; }
@@ -97,11 +97,12 @@
       padding: calc(var(--safe-t) + 2rem) 1.5rem calc(var(--safe-b) + 2rem);
     }
     .login-logo-ring {
-      width: 72px; height: 72px; border-radius: 50%;
-      border: 1.5px solid var(--accent2); background: rgba(255,255,255,0.04);
+      width: 88px; height: 88px; border-radius: 50%;
+      border: 1.5px solid rgba(214,40,57,0.45); background: rgba(255,255,255,0.04);
       display: flex; align-items: center; justify-content: center; margin-bottom: 1.2rem;
+      overflow: hidden;
     }
-    .login-logo { width: 46px; height: 46px; object-fit: contain; border-radius: 50%; }
+    .login-logo { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; padding: 8px; }
     .login-title { font-family: 'Sora',sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: .05em; }
     .login-sub { font-size: 0.72rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin-top: 4px; }
     .login-form { width: 100%; max-width: 360px; margin-top: 2.5rem; display: grid; gap: 0.9rem; }
@@ -337,7 +338,7 @@
     <div class="sl-glow"></div>
     <div class="sl-content">
       <div class="sl-ring">
-        <img src="assets/images/SoulPharma.png" alt="" class="sl-logo" onerror="this.style.display='none'">
+        <img src="assets/images/soul.jpg" alt="" class="sl-logo" onerror="this.style.display='none'">
       </div>
       <h1 class="sl-brand">Soul Pharma</h1>
       <p class="sl-sub">Employee Portal</p>
@@ -356,7 +357,7 @@
   <!-- ③ Login Screen ──────────────────────────────────── -->
   <div id="screen-login" class="screen hidden">
     <div class="login-logo-ring">
-      <img src="assets/images/SoulPharma.png" alt="" class="login-logo" onerror="this.style.display='none'">
+      <img src="assets/images/soul.jpg" alt="" class="login-logo" onerror="this.style.display='none'">
     </div>
     <h1 class="login-title">Soul Pharma</h1>
     <p class="login-sub">Employee Portal</p>
@@ -424,7 +425,7 @@
   <div id="screen-dash" class="screen hidden">
     <header class="dash-header">
       <div class="dash-logo-row">
-        <img src="assets/images/SoulPharma.png" alt="" class="dash-logo-img" onerror="this.style.display='none'">
+        <img src="assets/images/soul.jpg" alt="" class="dash-logo-img" onerror="this.style.display='none'">
         <span class="dash-brand">Soul Pharma</span>
       </div>
       <div id="tracking-indicator" style="display:flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--green);">

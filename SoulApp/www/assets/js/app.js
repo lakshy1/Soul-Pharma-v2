@@ -468,6 +468,7 @@
     state.locGranted   = await perms.checkLocation();
     state.notifGranted = await perms.checkNotif();
     if (!state.locGranted) {
+      loader.hide();           // clear loader so perms screen is fully interactive
       showScreen("perms");
       updatePermUI();
     } else {
