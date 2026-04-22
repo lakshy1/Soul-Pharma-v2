@@ -7,6 +7,7 @@ const Otp = require("../models/Otp");
 const EmployeeLocation = require("../models/EmployeeLocation");
 const Notification = require("../models/Notification");
 const EmployeeExpense = require("../models/EmployeeExpense");
+const Product = require("../models/Product");
 const auth = require("../middleware/auth");
 const { hashPassword, verifyPassword, verifyOtp } = require("../utils/password");
 const { nextSequence, setSequence } = require("../utils/counter");
@@ -273,8 +274,8 @@ router.get("/activities", auth(["employee"]), async (req, res) => {
 
 router.post("/activities", auth(["employee"]), async (req, res) => {
   try {
-    const { doctorId, doctorName, speciality, phone, address, visitedAt, followUpDate, notes, photoUrl, photoPublicId } =
-      req.body;
+    const { doctorId, doctorName, speciality, phone, address, visitedAt, followUpDate, notes, photoUrl, photoPublicId,
+            visitLatitude, visitLongitude, visitAccuracy } = req.body;
     if (!doctorId && !doctorName) {
       return res.status(400).json({ message: "Doctor is required" });
     }
@@ -294,6 +295,8 @@ router.post("/activities", auth(["employee"]), async (req, res) => {
           address,
         };
 
+    const hasLoc = visitLatitude !== undefined && visitLatitude !== "" &&
+                   visitLongitude !== undefined && visitLongitude !== "";
     const activity = await Activity.create({
       employee: req.user.id,
       doctor: doctor ? doctor._id : undefined,
@@ -303,6 +306,11 @@ router.post("/activities", auth(["employee"]), async (req, res) => {
       notes,
       photoUrl,
       photoPublicId,
+      visitLocation: hasLoc ? {
+        latitude:  Number(visitLatitude),
+        longitude: Number(visitLongitude),
+        accuracy:  visitAccuracy !== undefined && visitAccuracy !== "" ? Number(visitAccuracy) : undefined,
+      } : undefined,
     });
     return res.status(201).json({ activity });
   } catch (error) {
@@ -451,6 +459,15 @@ router.post("/uploads", auth(["employee"]), upload.single("file"), async (req, r
     return res.json({ url: result.secure_url, publicId: result.public_id });
   } catch (error) {
     return res.status(500).json({ message: "Unable to upload image", detail: error?.message });
+  }
+});
+
+router.get("/products", auth(["employee"]), async (req, res) => {
+  try {
+    const products = await Product.find().sort({ order: 1, serialNumber: 1, createdAt: 1 });
+    return res.json({ products });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch products" });
   }
 });
 

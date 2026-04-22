@@ -788,6 +788,7 @@
           <button type="button" class="admin-tab" data-admin-nav="focus">Business Focus <span class="admin-badge" data-badge="focus">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="forms">Form Responses <span class="admin-badge" data-badge="forms">0</span></button>
           <button type="button" class="admin-tab" data-admin-nav="notifications">Notifications <span class="admin-badge" data-badge="notifications">0</span></button>
+          <button type="button" class="admin-tab" data-admin-nav="products">Products <span class="admin-badge" data-badge="products">0</span></button>
         </div>
         <div id="admin-menu" class="hidden pt-4 md:hidden" data-mobile-menu>
           <div class="grid gap-2">
@@ -803,6 +804,7 @@
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="focus">Business Focus <span class="admin-badge" data-badge="focus">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="forms">Form Responses <span class="admin-badge" data-badge="forms">0</span></button>
             <button type="button" class="admin-tab w-full text-left" data-admin-nav="notifications">Notifications <span class="admin-badge" data-badge="notifications">0</span></button>
+            <button type="button" class="admin-tab w-full text-left" data-admin-nav="products">Products <span class="admin-badge" data-badge="products">0</span></button>
             <button type="button" class="btn-secondary !px-4 !py-2 hidden" data-admin-logout>Logout</button>
           </div>
         </div>
@@ -1253,6 +1255,38 @@
             <button type="submit" class="btn-brand">Send Notification</button>
           </form>
           <div class="mt-4 grid gap-3" data-admin-notification-list></div>
+        </section>
+
+        <!-- Products -->
+        <section class="glass-card hidden" data-admin-section="products">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-2xl font-bold">Products</h2>
+              <p class="muted mt-2 text-sm">Manage the product catalogue shown to field employees in the mobile app.</p>
+            </div>
+          </div>
+          <form class="mt-5 grid gap-3 md:grid-cols-2" data-admin-product-form>
+            <div class="grid gap-2">
+              <label class="form-label">Product Name</label>
+              <input name="name" type="text" class="form-input" placeholder="Product name" required>
+            </div>
+            <div class="grid gap-2">
+              <label class="form-label">Composition</label>
+              <input name="composition" type="text" class="form-input" placeholder="Ingredients / formula">
+            </div>
+            <div class="grid gap-2 md:col-span-2">
+              <label class="form-label">Image URL</label>
+              <input name="imageUrl" type="url" class="form-input" placeholder="https://...">
+            </div>
+            <div class="grid gap-2">
+              <label class="form-label">Display Order <span class="muted text-xs">(lower = first)</span></label>
+              <input name="order" type="number" class="form-input" placeholder="0" value="0">
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button type="submit" class="btn-brand w-full" data-admin-product-submit>Add Product</button>
+            </div>
+          </form>
+          <div class="mt-6" data-admin-product-list></div>
         </section>
       </section>
     </main>

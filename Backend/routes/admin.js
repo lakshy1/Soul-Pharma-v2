@@ -11,6 +11,7 @@ const EmployeeLocation = require("../models/EmployeeLocation");
 const Notification = require("../models/Notification");
 const Expense = require("../models/Expense");
 const EmployeeExpense = require("../models/EmployeeExpense");
+const Product = require("../models/Product");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
@@ -1056,6 +1057,53 @@ router.get("/notifications", auth(["admin"]), async (req, res) => {
     return res.json({ notifications });
   } catch (error) {
     return res.status(500).json({ message: "Unable to fetch notifications" });
+  }
+});
+
+// ── Products ───────────────────────────────────────────
+router.get("/products", auth(["admin"]), async (req, res) => {
+  try {
+    const products = await Product.find().sort({ order: 1, serialNumber: 1, createdAt: 1 });
+    return res.json({ products });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to fetch products" });
+  }
+});
+
+router.post("/products", auth(["admin"]), async (req, res) => {
+  try {
+    const { name, composition, imageUrl, order } = req.body;
+    if (!name) return res.status(400).json({ message: "Product name is required" });
+    const count = await Product.countDocuments();
+    const product = await Product.create({
+      serialNumber: count + 1,
+      name,
+      composition: composition || "",
+      imageUrl: imageUrl || "",
+      order: Number(order) || 0,
+    });
+    return res.status(201).json({ product });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to create product" });
+  }
+});
+
+router.patch("/products/:id", auth(["admin"]), async (req, res) => {
+  try {
+    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    return res.json({ product });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to update product" });
+  }
+});
+
+router.delete("/products/:id", auth(["admin"]), async (req, res) => {
+  try {
+    await Product.findByIdAndDelete(req.params.id);
+    return res.json({ message: "Product deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to delete product" });
   }
 });
 

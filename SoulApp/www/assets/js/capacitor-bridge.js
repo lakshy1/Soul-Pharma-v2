@@ -45,20 +45,9 @@
   };
 
   // ── Android back button ────────────────────────────────
-  // Prevent closing the app on back press when on main dashboard
+  // Back navigation is fully handled by app.js (step-back through UI layers).
+  // Suppress the default ionBackButton so Capacitor doesn't also close the app.
   document.addEventListener("ionBackButton", (ev) => {
-    ev.detail?.register(10, () => {
-      // do nothing — keeps user in the dashboard
-    });
-  });
-
-  // Also intercept Capacitor App plugin back button
-  cap("App")?.addListener?.("backButton", ({ canGoBack }) => {
-    if (!canGoBack) {
-      // Show exit confirmation instead of closing
-      if (confirm("Exit Soul Pharma?")) {
-        cap("App")?.exitApp?.();
-      }
-    }
+    ev.detail?.register(10, () => { /* handled by app.js */ });
   });
 })();

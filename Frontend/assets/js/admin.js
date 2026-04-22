@@ -82,6 +82,9 @@
   const menuButton = document.querySelector("[data-menu-toggle]");
   const mobileMenu = document.querySelector("[data-mobile-menu]");
 
+  const productForm = document.querySelector("[data-admin-product-form]");
+  const productList = document.querySelector("[data-admin-product-list]");
+
   const formSearch = document.querySelector("[data-form-search]");
   const formTopic = document.querySelector("[data-form-topic]");
   const formFrom = document.querySelector("[data-form-from]");
@@ -1327,6 +1330,11 @@
       return;
     }
     const employeeMap = Object.fromEntries(cachedEmployees.map((emp) => [emp._id, emp.name]));
+    const mapsLink = (loc) => {
+      if (!loc?.latitude || !loc?.longitude) return "-";
+      const url = `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`;
+      return `<a href="${url}" target="_blank" class="text-rose-500 underline text-xs font-semibold">📍 View Map</a>`;
+    };
     const isCompact = window.matchMedia("(max-width: 767px)").matches;
     if (isCompact) {
       activityList.innerHTML = items
@@ -1336,8 +1344,11 @@
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p class="text-lg font-semibold">${item.doctorSnapshot?.name || "Doctor"}</p>
+                ${item.doctorSnapshot?.speciality ? `<p class="muted text-xs">${item.doctorSnapshot.speciality}</p>` : ""}
                 <p class="muted text-sm">${new Date(item.visitedAt).toLocaleString("en-IN")}</p>
                 <p class="muted text-sm">Employee: ${employeeMap[item.employee] || "Unknown"}</p>
+                ${item.followUpDate ? `<p class="muted text-sm">Follow-up: ${new Date(item.followUpDate).toLocaleDateString("en-IN")}</p>` : ""}
+                ${mapsLink(item.visitLocation)}
               </div>
               <div class="flex flex-wrap gap-2">
                 <button data-activity-delete="${item._id}" class="btn-secondary !px-4 !py-2">Delete</button>
@@ -1352,13 +1363,14 @@
     }
     activityList.innerHTML = `
       <div class="rounded-xl border border-white/30 overflow-hidden" style="overflow-x:auto;">
-        <table class="w-full text-sm" style="min-width: 1000px;">
+        <table class="w-full text-sm" style="min-width: 1100px;">
           <thead class="bg-amber-500/5">
             <tr>
               <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Doctor</th>
               <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Visit Time</th>
               <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Employee</th>
               <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Follow-up</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">GPS Location</th>
               <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Notes</th>
               <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Actions</th>
             </tr>
@@ -1368,10 +1380,15 @@
               .map(
                 (item) => `
               <tr class="border-t border-white/30">
-                <td class="p-3 font-semibold">${item.doctorSnapshot?.name || "Doctor"}</td>
+                <td class="p-3">
+                  <p class="font-semibold">${item.doctorSnapshot?.name || "Doctor"}</p>
+                  ${item.doctorSnapshot?.speciality ? `<p class="muted text-xs">${item.doctorSnapshot.speciality}</p>` : ""}
+                  ${item.doctorSnapshot?.phone ? `<p class="muted text-xs">${item.doctorSnapshot.phone}</p>` : ""}
+                </td>
                 <td class="p-3">${new Date(item.visitedAt).toLocaleString("en-IN")}</td>
                 <td class="p-3">${employeeMap[item.employee] || "Unknown"}</td>
                 <td class="p-3">${item.followUpDate ? new Date(item.followUpDate).toLocaleDateString("en-IN") : "-"}</td>
+                <td class="p-3">${mapsLink(item.visitLocation)}</td>
                 <td class="p-3">${item.notes || "-"}</td>
                 <td class="p-3">
                   <button data-activity-delete="${item._id}" class="btn-secondary !px-4 !py-2">Delete</button>
@@ -3717,5 +3734,112 @@
       }
     });
   }
+
+  // ── Products ──────────────────────────────────────────
+  let cachedProducts = [];
+
+  const renderProducts = (items) => {
+    if (!productList) return;
+    setBadges(document.querySelector("[data-badge='products']"), items.length);
+    if (!items.length) {
+      productList.innerHTML = "<p class=\"muted text-sm\">No products yet. Add one above.</p>";
+      return;
+    }
+    productList.innerHTML = `
+      <div class="rounded-xl border border-white/30 overflow-hidden" style="overflow-x:auto;">
+        <table class="w-full text-sm">
+          <thead class="bg-rose-500/5">
+            <tr>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">#</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Product Name</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Composition</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Image</th>
+              <th class="p-3 text-left text-xs uppercase tracking-[0.14em]">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(p => `
+              <tr class="border-t border-white/30">
+                <td class="p-3 font-bold">${p.serialNumber || "–"}</td>
+                <td class="p-3 font-semibold">${p.name}</td>
+                <td class="p-3 text-xs">${p.composition || "–"}</td>
+                <td class="p-3">${p.imageUrl ? `<a href="${p.imageUrl}" target="_blank" class="text-rose-500 text-xs underline">View</a>` : "–"}</td>
+                <td class="p-3 flex gap-2 flex-wrap">
+                  <button data-product-edit="${p._id}" class="btn-secondary !px-3 !py-1 text-xs">Edit</button>
+                  <button data-product-delete="${p._id}" class="btn-secondary !px-3 !py-1 text-xs text-rose-500">Delete</button>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+
+    productList.querySelectorAll("[data-product-delete]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Delete this product?")) return;
+        try {
+          await request(`/admin/products/${btn.dataset.productDelete}`, { method: "DELETE" });
+          await loadProducts();
+        } catch (err) { setFeedback(err.message || "Delete failed.", true); }
+      });
+    });
+
+    productList.querySelectorAll("[data-product-edit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const p = cachedProducts.find(x => x._id === btn.dataset.productEdit);
+        if (!p || !productForm) return;
+        productForm.elements.name.value        = p.name || "";
+        productForm.elements.composition.value = p.composition || "";
+        productForm.elements.imageUrl.value    = p.imageUrl || "";
+        productForm.elements.order.value       = p.order || 0;
+        productForm.dataset.editId = p._id;
+        const submitBtn = productForm.querySelector("[data-admin-product-submit]");
+        if (submitBtn) submitBtn.textContent = "Update Product";
+      });
+    });
+  };
+
+  const loadProducts = async () => {
+    const data = await request("/admin/products");
+    cachedProducts = data.products || [];
+    renderProducts(cachedProducts);
+  };
+
+  if (productForm) {
+    productForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = productForm.querySelector("[data-admin-product-submit]");
+      const editId = productForm.dataset.editId;
+      const body = {
+        name:        productForm.elements.name.value.trim(),
+        composition: productForm.elements.composition.value.trim(),
+        imageUrl:    productForm.elements.imageUrl.value.trim(),
+        order:       Number(productForm.elements.order.value) || 0,
+      };
+      try {
+        if (btn) { btn.disabled = true; btn.textContent = "Saving..."; }
+        if (editId) {
+          await request(`/admin/products/${editId}`, { method: "PATCH", body: JSON.stringify(body) });
+          delete productForm.dataset.editId;
+        } else {
+          await request("/admin/products", { method: "POST", body: JSON.stringify(body) });
+        }
+        productForm.reset();
+        if (btn) btn.textContent = "Add Product";
+        await loadProducts();
+        setFeedback(editId ? "Product updated." : "Product added.");
+      } catch (err) {
+        setFeedback(err.message || "Failed to save product.", true);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
+  // Load products when section is visited
+  navButtons.forEach(btn => {
+    if (btn.dataset.adminNav === "products") {
+      btn.addEventListener("click", () => { if (!cachedProducts.length) loadProducts(); });
+    }
+  });
 })();
 

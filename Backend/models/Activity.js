@@ -15,6 +15,11 @@ const activitySchema = new mongoose.Schema(
     notes: { type: String, trim: true },
     photoUrl: { type: String, trim: true },
     photoPublicId: { type: String, trim: true },
+    visitLocation: {
+      latitude:  { type: Number },
+      longitude: { type: Number },
+      accuracy:  { type: Number },
+    },
   },
   { timestamps: true }
 );

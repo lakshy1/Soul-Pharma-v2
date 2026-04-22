@@ -8,11 +8,13 @@
   // ── State ──────────────────────────────────────────────
   const state = {
     token: null, employee: null, tab: "home",
-    doctors: [], activities: [], expenses: [],
+    doctors: [], activities: [], expenses: [], products: [],
     expenseMonth: new Date(),
+    calMonth: new Date(), calCache: {},
     locGranted: false, notifGranted: false,
-    selectedDoctorId: null,
+    selectedDoctorId: null, selectedDoctor: null,
     selectedExpDay: null,
+    previewIdx: 0,
   };
 
   // ── Formatting ─────────────────────────────────────────
@@ -44,16 +46,23 @@
 
   // ── API ────────────────────────────────────────────────
   const api = async (path, opts = {}) => {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: opts.method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
-      },
-      ...(opts.body ? { body: JSON.stringify(opts.body) } : {}),
-    });
-    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || `Error ${res.status}`); }
-    return res.json();
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 28000);
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        signal: controller.signal,
+        method: opts.method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+        },
+        ...(opts.body ? { body: JSON.stringify(opts.body) } : {}),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || `Error ${res.status}`); }
+      return res.json();
+    } finally {
+      clearTimeout(tid);
+    }
   };
 
   // ── Toast ──────────────────────────────────────────────
@@ -122,6 +131,7 @@
     if (tab === "expenses")   loadExpenses();
     if (tab === "doctors")    renderDoctors();
     if (tab === "activities") renderActivities();
+    if (tab === "products")   loadProducts();
   };
 
   // ── Permissions ────────────────────────────────────────
@@ -290,6 +300,28 @@
     renderExpenseCalendar();
   };
 
+  const loadProducts = async () => {
+    const wrap = document.getElementById("product-list-wrap");
+    try {
+      const data = await api("/employee/products");
+      state.products = data.products || [];
+      renderProducts();
+    } catch {
+      state.products = [];
+      renderProducts();
+    }
+  };
+
+  const loadCalendar = async () => {
+    const monthKey = `${state.calMonth.getFullYear()}-${String(state.calMonth.getMonth()+1).padStart(2,"0")}`;
+    try {
+      const data = await api(`/employee/activities/calendar?month=${monthKey}`);
+      state.calCache = {};
+      (data.days || []).forEach(d => { state.calCache[d.date] = d; });
+    } catch {}
+    renderCalendar();
+  };
+
   // ── Renderers ──────────────────────────────────────────
   const renderHomeHeader = () => {
     const emp  = state.employee || {};
@@ -309,14 +341,17 @@
     if (!el) return;
     const recent = state.activities.slice(0,5);
     if (!recent.length) { el.innerHTML = `<p class="empty-state">No activities yet this month.</p>`; return; }
-    el.innerHTML = recent.map(a => `
-      <div class="list-item mt-2">
-        <div class="list-avatar">${initial(a.doctorName || a.doctor?.name || "V")}</div>
+    el.innerHTML = recent.map(a => {
+      const name = a.doctorSnapshot?.name || a.doctorName || "Visit";
+      const ts   = a.visitedAt || a.createdAt;
+      return `<div class="list-item mt-2">
+        <div class="list-avatar">${initial(name)}</div>
         <div class="list-body">
-          <p class="list-name">${a.doctorName || a.doctor?.name || "Visit"}</p>
-          <p class="list-meta">${dmy(a.date || a.createdAt)}${a.notes ? " · " + a.notes.slice(0,40) : ""}</p>
+          <p class="list-name">${name}</p>
+          <p class="list-meta">${dmy(ts)} · ${timeStr(ts)}${a.notes ? " · " + a.notes.slice(0,40) : ""}</p>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   };
 
   const renderProfile = () => {
@@ -337,7 +372,7 @@
       const e = document.getElementById(id); if (e) e.textContent = val;
     });
 
-    // Avatar: initials vs photo
+    // Avatar in profile sheet
     const initEl = document.getElementById("profile-initial");
     const imgEl  = document.getElementById("profile-photo-img");
     const savedPhoto = localStorage.getItem("soul-profile-photo");
@@ -348,6 +383,18 @@
     } else {
       if (initEl) { initEl.textContent = initial(emp.name); initEl.style.display = ""; }
       if (imgEl)  imgEl.classList.add("hidden");
+    }
+
+    // Navbar avatar
+    const navInitEl = document.getElementById("profile-nav-initial");
+    const navImgEl  = document.getElementById("profile-nav-img");
+    if (savedPhoto && navImgEl && navInitEl) {
+      navImgEl.src = savedPhoto;
+      navImgEl.classList.remove("hidden");
+      navInitEl.style.display = "none";
+    } else {
+      if (navInitEl) { navInitEl.textContent = initial(emp.name); navInitEl.style.display = ""; }
+      if (navImgEl)  navImgEl.classList.add("hidden");
     }
   };
 
@@ -469,10 +516,13 @@
     el.innerHTML = filtered.map(d => `
       <div class="list-item">
         <div class="list-avatar">${initial(d.name)}</div>
-        <div class="list-body">
+        <div class="list-body" style="flex:1;min-width:0;">
           <p class="list-name">${d.name}</p>
           <p class="list-meta">${[d.speciality, d.clinicName, d.city].filter(Boolean).join(" · ")}</p>
           ${d.phone ? `<p class="list-meta">📞 ${d.phone}</p>` : ""}
+          ${d.address ? `<p class="list-meta">📍 ${d.address}${d.state ? ", " + d.state : ""}${d.pincode ? " " + d.pincode : ""}</p>` : ""}
+          ${d.email ? `<p class="list-meta">✉ ${d.email}</p>` : ""}
+          ${d.notes ? `<p class="list-meta" style="opacity:.65;">${d.notes.slice(0,60)}</p>` : ""}
         </div>
       </div>`).join("");
   };
@@ -481,19 +531,225 @@
     const el = document.getElementById("act-list");
     if (!el) return;
     if (!state.activities.length) { el.innerHTML = `<p class="empty-state">No visits logged this month.</p>`; return; }
-    el.innerHTML = state.activities.map(a => `
-      <div class="list-item">
-        <div class="list-avatar">${initial(a.doctorName || a.doctor?.name || "V")}</div>
-        <div class="list-body">
-          <p class="list-name">${a.doctorName || a.doctor?.name || "Visit"}</p>
-          <p class="list-meta">${dmy(a.date || a.createdAt)} at ${timeStr(a.date || a.createdAt)}</p>
-          ${a.notes ? `<p class="list-meta mt-1">${a.notes}</p>` : ""}
+    el.innerHTML = state.activities.map(a => {
+      const name = a.doctorSnapshot?.name || a.doctorName || "Visit";
+      const ts   = a.visitedAt || a.createdAt;
+      const spec = a.doctorSnapshot?.speciality || "";
+      const hasLoc = a.visitLocation?.latitude && a.visitLocation?.longitude;
+      const mapsUrl = hasLoc ? `https://www.google.com/maps?q=${a.visitLocation.latitude},${a.visitLocation.longitude}` : null;
+      return `<div class="list-item">
+        <div class="list-avatar">${initial(name)}</div>
+        <div class="list-body" style="flex:1;min-width:0;">
+          <p class="list-name">${name}${spec ? `<span style="font-size:.72rem;color:var(--muted);font-weight:400;margin-left:.4rem;">${spec}</span>` : ""}</p>
+          <p class="list-meta">${dmy(ts)} · ${timeStr(ts)}</p>
+          ${a.followUpDate ? `<p class="list-meta mt-1">Follow-up: ${dmy(a.followUpDate)}</p>` : ""}
+          ${a.notes ? `<p class="list-meta mt-1">${a.notes.slice(0,60)}</p>` : ""}
+          ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" style="font-size:.72rem;color:var(--blue);margin-top:3px;display:inline-block;">📍 View location</a>` : ""}
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
+  };
+
+  // ── Products renderer ──────────────────────────────────
+  const renderProducts = () => {
+    const wrap = document.getElementById("product-list-wrap");
+    if (!wrap) return;
+    if (!state.products.length) {
+      wrap.innerHTML = `<p class="empty-state">No products available yet.<br><span style="font-size:.72rem;">Products will appear here once added by admin.</span></p>`;
+      return;
+    }
+    wrap.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th class="td-sn">#</th>
+            <th>Product Name</th>
+            <th>Composition</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${state.products.map((p,i) => `
+            <tr data-product-idx="${i}">
+              <td class="td-sn">${p.serialNumber || i+1}</td>
+              <td class="td-name">${p.name}</td>
+              <td class="td-comp">${p.composition || "–"}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+    wrap.querySelectorAll("[data-product-idx]").forEach(row => {
+      row.addEventListener("click", () => openProductPreview(Number(row.dataset.productIdx)));
+    });
+  };
+
+  // ── Product preview ────────────────────────────────────
+  const openProductPreview = (idx) => {
+    state.previewIdx = Math.max(0, Math.min(idx, state.products.length - 1));
+    const overlay = document.getElementById("product-preview");
+    if (!overlay) return;
+    overlay.classList.remove("hidden");
+    updatePreviewSlide();
+  };
+
+  const closeProductPreview = () => {
+    document.getElementById("product-preview")?.classList.add("hidden");
+    try { screen.orientation?.unlock?.(); } catch {}
+  };
+
+  const updatePreviewSlide = () => {
+    const p = state.products[state.previewIdx];
+    if (!p) return;
+    const imgEl   = document.getElementById("prev-img");
+    const noImgEl = document.getElementById("prev-no-img");
+    const nameEl  = document.getElementById("prev-name");
+    const counter = document.getElementById("prev-counter");
+    const prevBtn = document.getElementById("prev-btn-prev");
+    const nextBtn = document.getElementById("prev-btn-next");
+
+    if (nameEl) nameEl.textContent = p.name;
+    if (counter) counter.textContent = `${state.previewIdx + 1} / ${state.products.length}`;
+    if (prevBtn) prevBtn.disabled = state.previewIdx === 0;
+    if (nextBtn) nextBtn.disabled = state.previewIdx === state.products.length - 1;
+
+    if (imgEl && noImgEl) {
+      if (p.imageUrl) {
+        imgEl.style.opacity = "0";
+        imgEl.src = p.imageUrl;
+        imgEl.classList.remove("hidden");
+        noImgEl.classList.add("hidden");
+        imgEl.onload = () => { imgEl.style.opacity = "1"; };
+        imgEl.onerror = () => { imgEl.classList.add("hidden"); noImgEl.classList.remove("hidden"); };
+      } else {
+        imgEl.classList.add("hidden");
+        noImgEl.classList.remove("hidden");
+      }
+    }
+  };
+
+  const bindProductPreview = () => {
+    const overlay = document.getElementById("product-preview");
+    if (!overlay) return;
+
+    document.getElementById("prev-close-btn")?.addEventListener("click", closeProductPreview);
+    document.getElementById("prev-btn-prev")?.addEventListener("click", () => {
+      if (state.previewIdx > 0) { state.previewIdx--; updatePreviewSlide(); }
+    });
+    document.getElementById("prev-btn-next")?.addEventListener("click", () => {
+      if (state.previewIdx < state.products.length - 1) { state.previewIdx++; updatePreviewSlide(); }
+    });
+
+    // Orientation toggle
+    document.getElementById("prev-orient-btn")?.addEventListener("click", async () => {
+      try {
+        if (screen.orientation?.type?.startsWith("landscape")) {
+          await screen.orientation?.lock?.("portrait");
+        } else {
+          await screen.orientation?.lock?.("landscape");
+        }
+      } catch {}
+    });
+
+    // Swipe left/right
+    let touchStartX = 0, touchStartY = 0;
+    overlay.addEventListener("touchstart", (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    overlay.addEventListener("touchend", (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return;
+      if (dx < 0 && state.previewIdx < state.products.length - 1) { state.previewIdx++; updatePreviewSlide(); }
+      if (dx > 0 && state.previewIdx > 0) { state.previewIdx--; updatePreviewSlide(); }
+    }, { passive: true });
+
+    // Keyboard left/right
+    document.addEventListener("keydown", (e) => {
+      if (overlay.classList.contains("hidden")) return;
+      if (e.key === "ArrowLeft"  && state.previewIdx > 0) { state.previewIdx--; updatePreviewSlide(); }
+      if (e.key === "ArrowRight" && state.previewIdx < state.products.length - 1) { state.previewIdx++; updatePreviewSlide(); }
+      if (e.key === "Escape") closeProductPreview();
+    });
+  };
+
+  // ── Activity calendar ──────────────────────────────────
+  const renderCalendar = () => {
+    const lbl = document.getElementById("cal-month-lbl");
+    if (lbl) lbl.textContent = monthLabel(state.calMonth);
+
+    const wrap = document.getElementById("cal-grid-wrap");
+    if (!wrap) return;
+
+    const d = state.calMonth;
+    const year = d.getFullYear(), month = d.getMonth();
+    const firstDay = new Date(year, month, 1);
+    let startOffset = firstDay.getDay() - 1;
+    if (startOffset < 0) startOffset = 6;
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const today = isoDate(new Date());
+    const hdrs  = ["Mo","Tu","We","Th","Fr","Sa","Su"];
+
+    let html = `<div class="cal-grid">`;
+    hdrs.forEach(h => { html += `<div class="cal-day-hdr">${h}</div>`; });
+    for (let i = 0; i < startOffset; i++) html += `<div class="cal-day empty"></div>`;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key  = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      const meta = state.calCache[key];
+      const cnt  = meta?.count || 0;
+      const isToday = key === today;
+      let cls = "cal-day";
+      if (cnt >= 3) cls += " has-visit has-visit-3";
+      else if (cnt === 2) cls += " has-visit has-visit-2";
+      else if (cnt === 1) cls += " has-visit";
+      if (isToday) cls += " today";
+      html += `<div class="${cls}" data-cal-date="${key}">
+        <div class="cal-day-num">${day}</div>
+        ${cnt ? `<div class="cal-day-visits">${cnt} visit${cnt>1?"s":""}</div>` : ""}
+      </div>`;
+    }
+    html += `</div>`;
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll("[data-cal-date]").forEach(cell => {
+      cell.addEventListener("click", () => {
+        const key = cell.dataset.calDate;
+        const meta = state.calCache[key];
+        const detail = document.getElementById("cal-day-detail");
+        if (!detail) return;
+        if (!meta?.count) {
+          detail.innerHTML = `<p class="empty-state" style="padding:1rem 0;">No visits on ${dmy(key+"T00:00:00")}.</p>`;
+        } else {
+          detail.innerHTML = `<p style="font-size:.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem;">${dmy(key+"T00:00:00")}</p>
+            ${meta.items.map(it => `<div class="cal-detail-card">
+              <p style="font-weight:700;font-size:.9rem;">${it.doctorName || "Visit"}</p>
+              <p style="font-size:.75rem;color:var(--muted);margin-top:3px;">${timeStr(it.time)}</p>
+            </div>`).join("")}`;
+        }
+      });
+    });
+  };
+
+  const openCalendar = () => {
+    document.getElementById("sheet-calendar")?.classList.remove("hidden");
+    loadCalendar();
+  };
+
+  const closeCalendar = () => {
+    document.getElementById("sheet-calendar")?.classList.add("hidden");
   };
 
   // ── Sheets ─────────────────────────────────────────────
-  const openSheet  = (id) => document.getElementById(id)?.classList.remove("hidden");
+  const stampActivityTime = () => {
+    const el = document.getElementById("act-form-visitedAt");
+    if (!el) return;
+    const now = new Date();
+    el.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}T${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+  };
+
+  const openSheet = (id) => {
+    document.getElementById(id)?.classList.remove("hidden");
+    if (id === "sheet-activity") stampActivityTime();
+  };
   const closeSheet = (id) => document.getElementById(id)?.classList.add("hidden");
 
   // ── Notifications ──────────────────────────────────────
@@ -529,6 +785,8 @@
     const inp    = document.getElementById("inp-profile-photo");
     const imgEl  = document.getElementById("profile-photo-img");
     const initEl = document.getElementById("profile-initial");
+    const navImg = document.getElementById("profile-nav-img");
+    const navInit= document.getElementById("profile-nav-initial");
 
     btn?.addEventListener("click", () => inp?.click());
 
@@ -539,8 +797,10 @@
       reader.onload = (ev) => {
         const b64 = ev.target.result;
         localStorage.setItem("soul-profile-photo", b64);
-        if (imgEl) { imgEl.src = b64; imgEl.classList.remove("hidden"); }
-        if (initEl) initEl.style.display = "none";
+        if (imgEl)   { imgEl.src = b64; imgEl.classList.remove("hidden"); }
+        if (initEl)  initEl.style.display = "none";
+        if (navImg)  { navImg.src = b64; navImg.classList.remove("hidden"); }
+        if (navInit) navInit.style.display = "none";
         toast("Profile photo updated!");
       };
       reader.readAsDataURL(file);
@@ -619,23 +879,22 @@
       renderActivities();
     }
 
-    try {
-      await loadProfile();    loader.snap(35, "Profile loaded");
-      await loadDoctors();    loader.snap(58, "Doctors synced");
-      await loadActivities(); loader.snap(78, "Activities loaded");
-      await loadExpenses();   loader.snap(93, "Expenses fetched");
-      renderHomeHeader();
-      loader.snap(100, "All set!");
-      tracker.start();
-      // Initial location ping after login
-      sendLocationPing("login");
-      startLocationWatch();
-      setTimeout(() => loader.hide(), 600);
-    } catch (err) {
-      loader.snap(100, "Ready");
-      setTimeout(() => loader.hide(), 400);
-      toast("Some data failed to load — pull to refresh.", true);
-    }
+    const safe = async (fn, snapTo, label) => {
+      try { await fn(); } catch { /* keep going, cache still shown */ }
+      loader.snap(snapTo, label);
+    };
+
+    await safe(loadProfile,    35, "Profile loaded");
+    await safe(loadDoctors,    58, "Doctors synced");
+    await safe(loadActivities, 78, "Activities loaded");
+    await safe(loadExpenses,   93, "Expenses fetched");
+
+    renderHomeHeader();
+    loader.snap(100, "All set!");
+    tracker.start();
+    sendLocationPing("login");
+    startLocationWatch();
+    setTimeout(() => loader.hide(), 600);
   };
 
   // ── After login: permissions gate then dashboard ───────
@@ -708,15 +967,36 @@
 
     // FAB
     document.getElementById("app-fab")?.addEventListener("click", () => {
-      if (state.tab === "expenses")   { document.getElementById("exp-form-date").value = nowDate(); openSheet("sheet-expense"); }
-      if (state.tab === "doctors")    openSheet("sheet-doctor");
-      if (state.tab === "activities") { document.getElementById("act-form-date").value = nowDate(); document.getElementById("act-form-time").value = nowTime(); openSheet("sheet-activity"); }
+      if (state.tab === "expenses") {
+        document.getElementById("exp-form-date").value = nowDate();
+        openSheet("sheet-expense");
+      }
+      if (state.tab === "doctors") openSheet("sheet-doctor");
+      if (state.tab === "activities") openSheet("sheet-activity");
     });
 
     // Logout
     document.getElementById("btn-logout")?.addEventListener("click", async () => {
       if (confirm("Sign out of Soul Pharma?")) await auth.logout();
     });
+
+    // Navbar: calendar icon
+    document.getElementById("btn-cal")?.addEventListener("click", openCalendar);
+    document.getElementById("btn-cal-close")?.addEventListener("click", closeCalendar);
+    document.getElementById("cal-prev")?.addEventListener("click", () => {
+      state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth()-1, 1);
+      loadCalendar();
+    });
+    document.getElementById("cal-next")?.addEventListener("click", () => {
+      const next = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth()+1, 1);
+      if (next <= new Date()) { state.calMonth = next; loadCalendar(); }
+    });
+
+    // Navbar: profile avatar
+    document.getElementById("btn-profile-nav")?.addEventListener("click", () => openSheet("sheet-profile"));
+
+    // Product preview
+    bindProductPreview();
 
     // Expense month nav
     document.getElementById("exp-prev")?.addEventListener("click", () => {
@@ -770,20 +1050,37 @@
     const actDoctorInput   = document.getElementById("act-doctor-input");
     const actDoctorResults = document.getElementById("act-doctor-results");
 
+    const actFillDoctor = (doctor) => {
+      state.selectedDoctorId = doctor._id;
+      state.selectedDoctor   = doctor;
+      const g = (id) => document.getElementById(id);
+      if (g("act-doctor-id"))  g("act-doctor-id").value  = doctor._id || "";
+      if (g("act-speciality")) g("act-speciality").value = doctor.speciality || "";
+      if (g("act-phone"))      g("act-phone").value      = doctor.phone || "";
+      if (g("act-address"))    g("act-address").value    = doctor.address || "";
+    };
+
+    const actClearDoctor = () => {
+      state.selectedDoctorId = null;
+      state.selectedDoctor   = null;
+      const g = (id) => document.getElementById(id);
+      ["act-doctor-id","act-speciality","act-phone","act-address"].forEach(id => { if (g(id)) g(id).value = ""; });
+    };
+
     actDoctorInput?.addEventListener("input", (e) => {
       const q = e.target.value.toLowerCase();
-      state.selectedDoctorId = null;
+      actClearDoctor();
       if (!q) { actDoctorResults.style.display = "none"; return; }
       const matches = state.doctors.filter(d => d.name?.toLowerCase().includes(q));
       if (!matches.length) { actDoctorResults.style.display = "none"; return; }
       actDoctorResults.style.display = "block";
       actDoctorResults.innerHTML = matches.slice(0,6).map(d =>
-        `<div data-id="${d._id}" data-name="${d.name}" style="padding:.6rem .85rem;font-size:.88rem;font-weight:600;cursor:pointer;border-bottom:1px solid var(--border);">${d.name}<span style="font-size:.72rem;color:var(--muted);font-weight:400;margin-left:.4rem;">${d.speciality||""}</span></div>`
+        `<div data-id="${d._id}" style="padding:.6rem .85rem;font-size:.88rem;font-weight:600;cursor:pointer;border-bottom:1px solid var(--border);">${d.name}<span style="font-size:.72rem;color:var(--muted);font-weight:400;margin-left:.4rem;">${d.speciality||""}</span></div>`
       ).join("");
       actDoctorResults.querySelectorAll("[data-id]").forEach(el => {
         el.addEventListener("click", () => {
-          state.selectedDoctorId = el.dataset.id;
-          actDoctorInput.value = el.dataset.name;
+          const doc = state.doctors.find(d => d._id === el.dataset.id);
+          if (doc) { actFillDoctor(doc); actDoctorInput.value = doc.name; }
           actDoctorResults.style.display = "none";
         });
       });
@@ -792,15 +1089,33 @@
     document.getElementById("form-activity")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("act-submit-btn");
+      const gpsStatus = document.getElementById("act-gps-status");
       btn.disabled = true; btn.textContent = "Saving...";
       const body = Object.fromEntries(new FormData(e.target).entries());
-      if (state.selectedDoctorId) body.doctorId = state.selectedDoctorId;
+
+      // Remove empty hidden doctorId to avoid sending blank string
+      if (!body.doctorId) delete body.doctorId;
+
+      // Capture GPS at moment of submit
+      if (isNative() && gpsStatus) gpsStatus.style.display = "";
+      try {
+        const pos = await cap("Geolocation")?.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 });
+        if (pos?.coords) {
+          body.visitLatitude  = pos.coords.latitude;
+          body.visitLongitude = pos.coords.longitude;
+          body.visitAccuracy  = pos.coords.accuracy;
+        }
+      } catch {}
+      if (gpsStatus) gpsStatus.style.display = "none";
+
       try {
         await api("/employee/activities", { method: "POST", body });
-        e.target.reset(); actDoctorResults.style.display = "none"; state.selectedDoctorId = null;
+        e.target.reset();
+        actDoctorResults.style.display = "none";
+        actClearDoctor();
         closeSheet("sheet-activity");
         await loadActivities(); renderHomeHeader();
-        toast("Visit logged!");
+        toast("Visit logged with location!");
       } catch (err) { toast(err.message || "Failed to save.", true); }
       finally { btn.disabled = false; btn.textContent = "Save Visit"; }
     });
@@ -812,6 +1127,7 @@
       ["sheet-activity",  "sheet-activity-close",  "sheet-activity-bd"],
       ["sheet-notifs",    null,                    "sheet-notifs-bd"],
       ["sheet-exp-detail",null,                    "sheet-exp-detail-bd"],
+      ["sheet-profile",   null,                    "sheet-profile-bd"],
     ].forEach(([sheet, closeBtn, backdrop]) => {
       if (closeBtn) document.getElementById(closeBtn)?.addEventListener("click", () => closeSheet(sheet));
       document.getElementById(backdrop)?.addEventListener("click", () => closeSheet(sheet));
@@ -832,9 +1148,43 @@
       } catch {}
     }
 
-    // Android back button — exit confirmation
-    cap("App")?.addListener?.("backButton", ({ canGoBack }) => {
-      if (!canGoBack && confirm("Exit Soul Pharma?")) cap("App")?.exitApp?.();
+    // Exit dialog wiring
+    const exitDialog  = document.getElementById("exit-dialog");
+    const showExitDlg = () => exitDialog?.classList.remove("hidden");
+    const hideExitDlg = () => exitDialog?.classList.add("hidden");
+    document.getElementById("exit-cancel")?.addEventListener("click", hideExitDlg);
+    document.getElementById("exit-confirm")?.addEventListener("click", () => {
+      hideExitDlg();
+      cap("App")?.exitApp?.();
+    });
+
+    // Android back button — step back through UI layers
+    cap("App")?.addListener?.("backButton", () => {
+      // 1. Exit dialog visible → dismiss it
+      if (exitDialog && !exitDialog.classList.contains("hidden")) {
+        hideExitDlg(); return;
+      }
+      // 2. Product preview open → close it
+      const preview = document.getElementById("product-preview");
+      if (preview && !preview.classList.contains("hidden")) {
+        closeProductPreview(); return;
+      }
+      // 3. Calendar sheet open → close it
+      const cal = document.getElementById("sheet-calendar");
+      if (cal && !cal.classList.contains("hidden")) {
+        closeCalendar(); return;
+      }
+      // 4. Any bottom sheet open → close it
+      const openSheet = document.querySelector(".bottom-sheet:not(.hidden)");
+      if (openSheet) {
+        openSheet.classList.add("hidden"); return;
+      }
+      // 5. Not on home tab → go home
+      if (state.tab !== "home") {
+        setTab("home"); return;
+      }
+      // 6. On home → styled exit dialog
+      showExitDlg();
     });
   };
 
