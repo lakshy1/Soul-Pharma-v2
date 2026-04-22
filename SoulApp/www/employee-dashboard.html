@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Soul Pharma Employee Dashboard">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#d62839">
+  <meta name="color-scheme" content="light dark">
+  <meta name="application-name" content="Soul Pharma">
+  <meta name="author" content="Soul Pharma">
+  <title>Soul Pharma | Employee Dashboard</title>
+  <link rel="icon" href="Images/SoulPharma.png" type="image/png">
+  <link rel="apple-touch-icon" href="Images/SoulPharma.png">
+  <link rel="stylesheet" href="build/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
+  <style>
+    .notif-btn {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(255, 255, 255, 0.7);
+      color: #0f172a;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .notif-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(15, 23, 42, 0.15);
+    }
+    .notif-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #d62839;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #f8f5f6;
+    }
+    [data-theme="dark"] .notif-btn {
+      background: rgba(15, 23, 42, 0.7);
+      color: #e2e8f0;
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+    [data-theme="dark"] .notif-badge {
+      border-color: #0b1120;
+    }
+    .expense-grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .expense-day {
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.72);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease;
+      cursor: pointer;
+      min-height: 92px;
+    }
+    .expense-day:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    }
+    .expense-day.is-active {
+      border-color: rgba(214, 40, 57, 0.6);
+      box-shadow: 0 14px 26px rgba(214, 40, 57, 0.18);
+    }
+    .expense-day .day-label {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .expense-day .day-meta {
+      font-size: 0.65rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .expense-day .day-total {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-top: 0.35rem;
+    }
+    .expense-day .day-count {
+      font-size: 0.7rem;
+      color: #64748b;
+    }
+    .expense-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(214, 40, 57, 0.12);
+      color: #d62839;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .expense-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 0.25rem;
+      border: 1px solid transparent;
+    }
+    .expense-status.is-pending {
+      background: rgba(251, 191, 36, 0.18);
+      color: #b45309;
+      border-color: rgba(251, 191, 36, 0.4);
+    }
+    .expense-status.is-approved {
+      background: rgba(34, 197, 94, 0.18);
+      color: #15803d;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+    .expense-status.is-mixed {
+      background: rgba(59, 130, 246, 0.18);
+      color: #1d4ed8;
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+    .expense-status.is-rejected {
+      background: rgba(239, 68, 68, 0.15);
+      color: #b91c1c;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+    @media (max-width: 768px) {
+      .expense-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .expense-day {
+        padding: 0.8rem 0.6rem;
+        min-height: 96px;
+      }
+      .expense-day .day-label {
+        font-size: 1.1rem;
+      }
+      .expense-day .day-total {
+        font-size: 0.95rem;
+      }
+    }
+    .expense-panel {
+      display: none;
+    }
+    .expense-popup {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.45);
+      padding: 1.25rem;
+    }
+    .expense-popup-card {
+      width: min(720px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .expense-popup.hidden {
+      display: none;
+    }
+    .expense-popup-divider {
+      border: none;
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      margin: 0.25rem 0;
+    }
+
+    /* ── Soul Loader ─────────────────────────────────────── */
+    #soul-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #0a0f1e 0%, #130c1f 50%, #0a0f1e 100%);
+      transition: opacity 0.65s ease;
+    }
+    #soul-loader.sl-done {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sl-glow {
+      position: absolute;
+      width: 560px;
+      height: 560px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(214,40,57,0.13) 0%, transparent 68%);
+      pointer-events: none;
+      animation: sl-glow-pulse 3s ease-in-out infinite;
+    }
+    @keyframes sl-glow-pulse {
+      0%,100% { transform: scale(1); opacity: 0.8; }
+      50%      { transform: scale(1.12); opacity: 1; }
+    }
+    .sl-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      width: min(420px, 90vw);
+      padding: 1rem;
+    }
+    .sl-ring {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      margin: 0 auto 1.4rem;
+      border: 1.5px solid rgba(214,40,57,0.45);
+      background: rgba(255,255,255,0.04);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: sl-ring-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes sl-ring-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(214,40,57,0.35), 0 0 24px rgba(214,40,57,0.1); }
+      50%      { box-shadow: 0 0 0 14px rgba(214,40,57,0), 0 0 48px rgba(214,40,57,0.22); }
+    }
+    .sl-logo {
+      width: 54px;
+      height: 54px;
+      object-fit: contain;
+      border-radius: 50%;
+    }
+    .sl-brand {
+      font-family: 'Sora', 'Manrope', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.06em;
+      margin: 0;
+    }
+    .sl-sub {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: #d62839;
+      margin-top: 0.3rem;
+    }
+    .sl-pct {
+      font-size: 3.8rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+      margin: 2rem 0 1rem;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+    .sl-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .sl-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #9b1a27, #d62839, #ff5a6a, #d62839, #9b1a27);
+      background-size: 300% 100%;
+      transition: width 0.55s cubic-bezier(0.4,0,0.2,1);
+      animation: sl-shimmer 2.2s linear infinite;
+    }
+    @keyframes sl-shimmer {
+      0%   { background-position: 100% center; }
+      100% { background-position: -100% center; }
+    }
+    .sl-msg {
+      margin-top: 1rem;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.38);
+      letter-spacing: 0.02em;
+      min-height: 1.1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .sl-dots {
+      display: inline-flex;
+      gap: 3px;
+    }
+    .sl-dots span {
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: rgba(214,40,57,0.7);
+      animation: sl-dot 1.3s ease-in-out infinite;
+    }
+    .sl-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .sl-dots span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes sl-dot {
+      0%,80%,100% { transform: scale(0.7); opacity: 0.35; }
+      40%          { transform: scale(1.2); opacity: 1; }
+    }
+  </style>
+</head>
+<body data-page="employee-dashboard">
+
+  <!-- Soul Loader -->
+  <div id="soul-loader" aria-live="polite" aria-label="Loading Soul Pharma">
+    <div class="sl-glow"></div>
+    <div class="sl-content">
+      <div class="sl-ring">
+        <img src="Images/SoulPharma.png" alt="Soul Pharma" class="sl-logo" onerror="this.style.display='none'">
+      </div>
+      <h1 class="sl-brand">Soul Pharma</h1>
+      <p class="sl-sub">Employee Portal</p>
+      <p class="sl-pct" id="sl-pct">0%</p>
+      <div class="sl-track">
+        <div class="sl-fill" id="sl-fill"></div>
+      </div>
+      <p class="sl-msg">
+        <span id="sl-msg">Initializing</span>
+        <span class="sl-dots"><span></span><span></span><span></span></span>
+      </p>
+    </div>
+  </div>
+
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="page-shell">
+    <header class="sticky top-4 z-50">
+      <nav class="glass-nav max-content">
+        <div class="employee-header">
+          <button type="button" class="flex items-center gap-3 text-left" data-emp-home aria-label="Go to overview">
+            <img src="Images/Logo.png" alt="Soul Pharma logo" width="98" height="58" class="h-12 w-auto">
+            <div class="employee-brand">
+              <span class="focus-pill">Employee Dashboard</span>
+              <p class="employee-subtitle">Daily field ops and visit tracking.</p>
+            </div>
+          </button>
+          <div class="employee-actions">
+            <span class="focus-pill lg:inline-flex hidden" data-employee-status>Signed in</span>
+            <button type="button" class="notif-btn" data-emp-notification-button aria-label="Notifications">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+                <path d="M13.73 21a2 2 0 01-3.46 0"></path>
+              </svg>
+              <span class="notif-badge" data-emp-notification-count>0</span>
+            </button>
+            <button type="button" class="theme-btn" data-theme-toggle aria-label="Toggle theme">
+              <span data-theme-icon></span>
+            </button>
+            <button type="button" class="btn-secondary !px-4 !py-2 hidden lg:inline-flex" data-employee-logout>Logout</button>
+            <button type="button" class="theme-btn md:hidden" data-emp-menu-toggle aria-expanded="false" aria-controls="emp-menu">&#9776;</button>
+          </div>
+        </div>
+        <div class="employee-nav mt-4 hidden lg:flex">
+          <button type="button" class="employee-tab is-active" data-emp-nav="overview">Overview</button>
+          <button type="button" class="employee-tab" data-emp-nav="notifications">
+            Notifications <span class="admin-badge" data-emp-notification-count>0</span>
+          </button>
+          <button type="button" class="employee-tab" data-emp-nav="doctors">Doctors</button>
+          <button type="button" class="employee-tab" data-emp-nav="activity">Daily Activity</button>
+          <button type="button" class="employee-tab" data-emp-nav="expenses">Expenses</button>
+          <button type="button" class="employee-tab" data-emp-nav="calendar">Calendar</button>
+          <!-- desktop logout tab, in addition to the action button at top -->
+          <button type="button" class="employee-tab" data-employee-logout>Logout</button>
+        </div>
+        <div id="emp-menu" class="hidden mt-4 lg:hidden" data-emp-mobile-menu>
+          <div class="mobile-status">
+            <span class="focus-pill" data-employee-status>Signed in</span>
+          </div>
+          <div class="mobile-nav">
+            <button type="button" class="employee-tab is-active w-full text-left" data-emp-nav="overview">Overview</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="notifications">
+              Notifications <span class="admin-badge" data-emp-notification-count>0</span>
+            </button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="doctors">Doctors</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="activity">Daily Activity</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="expenses">Expenses</button>
+            <button type="button" class="employee-tab w-full text-left" data-emp-nav="calendar">Calendar</button>
+          </div>
+          <div class="mobile-nav-actions">
+            <button type="button" class="btn-secondary !px-4 !py-2 w-full" data-employee-logout>Logout</button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="max-content mt-10 space-y-8">
+      <section class="hero-panel">
+        <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500">Employee Access</p>
+        <h1 class="section-title mt-2" data-emp-greeting>Welcome back</h1>
+        <p class="muted mt-3 text-sm">Track doctors, log visits, and keep your field activity organized.</p>
+        <p class="mt-3 text-sm text-rose-500 hidden" data-emp-feedback></p>
+      </section>
+
+      <section class="space-y-8" data-emp-section="overview">
+        <section class="grid gap-4 md:grid-cols-3">
+          <article class="glass-card text-center">
+            <p class="text-3xl font-bold" data-stat-doctors>0</p>
+            <p class="muted mt-2 text-sm">Doctors Assigned</p>
+          </article>
+          <article class="glass-card text-center">
+            <p class="text-3xl font-bold" data-stat-visits>0</p>
+            <p class="muted mt-2 text-sm">Visits This Month</p>
+          </article>
+          <article class="glass-card text-center">
+            <p class="text-3xl font-bold" data-stat-followups>0</p>
+            <p class="muted mt-2 text-sm">Upcoming Follow-ups</p>
+          </article>
+        </section>
+
+        <section class="grid gap-4 lg:grid-cols-2">
+          <div class="glass-card">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold">Profile Snapshot</h2>
+              <span class="focus-pill" data-employee-role>Employee</span>
+            </div>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div class="summary-card">
+                <p class="summary-label">Name</p>
+                <p class="summary-value" data-employee-name>—</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Email</p>
+                <p class="summary-value" data-employee-email>—</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Employee ID</p>
+                <p class="summary-value" data-employee-id>—</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Territory</p>
+                <p class="summary-value" data-employee-territory>—</p>
+              </div>
+            </div>
+          </div>
+          <div class="glass-card">
+            <h2 class="text-xl font-semibold">Recent Activity</h2>
+            <div class="mt-4 grid gap-3" data-recent-activity></div>
+          </div>
+        </section>
+
+        <section class="grid gap-4 lg:grid-cols-2">
+          <div class="glass-card">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold">Live Tracking</h2>
+              <span class="focus-pill" data-tracking-status>Pending</span>
+            </div>
+            <div class="mt-4 grid gap-3">
+              <div class="summary-card">
+                <p class="summary-label">GPS</p>
+                <p class="summary-value" data-tracking-gps>Not requested</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Notifications</p>
+                <p class="summary-value" data-tracking-notifications>Not requested</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Battery</p>
+                <p class="summary-value" data-tracking-battery>Unknown</p>
+              </div>
+              <div class="summary-card">
+                <p class="summary-label">Last Sync</p>
+                <p class="summary-value" data-tracking-last>—</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="notifications">
+        <section class="glass-card">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-semibold">Notifications</h2>
+            <span class="focus-pill" data-emp-notification-count>0</span>
+          </div>
+          <p class="muted mt-1 text-sm">Real-time updates and announcements from admins.</p>
+          <div class="mt-4 grid gap-3" data-employee-notification-list></div>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="doctors">
+        <section class="glass-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-semibold">Your Doctors</h2>
+              <p class="muted mt-1 text-sm">All assigned doctors are listed below.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="search" class="form-input w-full sm:w-64" placeholder="Search doctor" data-doctor-search>
+            </div>
+          </div>
+          <div class="mt-4 grid gap-4" data-doctors-list></div>
+        </section>
+
+        <section class="glass-card">
+          <h2 class="text-xl font-semibold">Add Doctor</h2>
+          <p class="muted mt-1 text-sm">Enter doctor details to add to your list.</p>
+          <form class="mt-5 grid gap-4" data-doctor-form>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="grid gap-2">
+                <label class="form-label">Doctor Name</label>
+                <input name="name" class="form-input" placeholder="Dr. Name" required>
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Speciality</label>
+                <input name="speciality" class="form-input" placeholder="Cardiology">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Phone</label>
+                <input name="phone" class="form-input" placeholder="+91 9XXXXXXXXX" required>
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Email</label>
+                <input name="email" class="form-input" placeholder="doctor@email.com">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Clinic Name</label>
+                <input name="clinicName" class="form-input" placeholder="Clinic / Hospital">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Address</label>
+                <input name="address" class="form-input" placeholder="Street, Area">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">City</label>
+                <input name="city" class="form-input" placeholder="City">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">State</label>
+                <input name="state" class="form-input" placeholder="State">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Pin Code</label>
+                <input name="pincode" class="form-input" placeholder="Postal code">
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label class="form-label">Notes</label>
+              <textarea name="notes" class="form-textarea" placeholder="Comments or reminders"></textarea>
+            </div>
+            <button type="submit" class="btn-brand w-full md:w-fit">Add Doctor</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="activity">
+        <section class="glass-card">
+          <h2 class="text-xl font-semibold">Recent Visits</h2>
+          <p class="muted mt-1 text-sm">Latest field visits logged by you.</p>
+          <div class="mt-4 grid gap-4" data-activity-list></div>
+        </section>
+
+        <section class="glass-card">
+          <h2 class="text-xl font-semibold">Log Daily Visit</h2>
+          <p class="muted mt-1 text-sm">Search a doctor to auto-fill details and upload visit proof.</p>
+          <form class="mt-5 grid gap-4" data-activity-form>
+            <div class="grid gap-2">
+              <label class="form-label">Search Doctor</label>
+              <input type="search" class="form-input" placeholder="Type doctor name" data-activity-doctor-search>
+              <div class="dropdown-list hidden" data-activity-doctor-results></div>
+              <input type="hidden" name="doctorId">
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="grid gap-2">
+                <label class="form-label">Doctor Name</label>
+                <input name="doctorName" class="form-input" placeholder="Dr. Name">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Speciality</label>
+                <input name="speciality" class="form-input" placeholder="Speciality">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Phone</label>
+                <input name="phone" class="form-input" placeholder="+91 9XXXXXXXXX">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Address</label>
+                <input name="address" class="form-input" placeholder="Address">
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Visited Time</label>
+                <input name="visitedAt" type="datetime-local" class="form-input" data-activity-time>
+              </div>
+              <div class="grid gap-2">
+                <label class="form-label">Next Follow-up</label>
+                <input name="followUpDate" type="date" class="form-input">
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <label class="form-label">Comments</label>
+              <textarea name="notes" class="form-textarea" placeholder="Visit notes or observations"></textarea>
+            </div>
+            <div class="upload-card">
+              <div class="upload-info">
+                <div>
+                  <p class="upload-title">Upload Visit Photo</p>
+                  <p class="upload-subtitle muted text-sm">JPG/PNG up to 8 MB.</p>
+                </div>
+                <span class="focus-pill" data-upload-status>Idle</span>
+              </div>
+              <input type="file" accept="image/*" class="form-input" data-activity-file>
+              <div class="upload-progress hidden" data-upload-progress>
+                <div class="upload-bar">
+                  <span data-upload-bar></span>
+                </div>
+                <p class="muted text-xs" data-upload-text>Uploading...</p>
+              </div>
+              <img alt="Uploaded proof" class="upload-preview hidden" data-upload-preview>
+              <input type="hidden" name="photoUrl">
+              <input type="hidden" name="photoPublicId">
+            </div>
+            <button type="submit" class="btn-brand w-full md:w-fit">Save Visit</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="calendar">
+        <section class="glass-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-semibold">Monthly Calendar</h2>
+              <p class="muted mt-1 text-sm">Tap a date to see visits and timings.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn-secondary !px-4 !py-2" data-cal-prev>Prev</button>
+              <span class="focus-pill" data-cal-label>Month</span>
+              <button type="button" class="btn-secondary !px-4 !py-2" data-cal-next>Next</button>
+            </div>
+          </div>
+          <div class="calendar-shell mt-6">
+            <svg class="calendar-svg" data-calendar></svg>
+          </div>
+        </section>
+      </section>
+
+      <section class="space-y-8 hidden" data-emp-section="expenses">
+        <section class="glass-card">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-semibold">Expense Tracker</h2>
+              <p class="muted mt-1 text-sm">Log travel and field expenses for the selected month.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn-secondary !px-3 !py-2" data-expense-month-prev>Prev</button>
+              <span class="focus-pill" data-expense-month-label>Last 30 Days</span>
+              <button type="button" class="btn-secondary !px-3 !py-2" data-expense-month-next>Next</button>
+              <span class="expense-chip" data-expense-total-label>Total: &#8377;0</span>
+            </div>
+          </div>
+          <div class="mt-4 expense-grid" data-expense-grid></div>
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.14em] text-slate-500">
+            <span class="expense-status is-pending">Pending</span>
+            <span class="expense-status is-approved">Approved</span>
+            <span class="expense-status is-rejected">Rejected</span>
+            <span class="expense-status is-mixed">Mixed</span>
+          </div>
+          <div class="mt-5 grid gap-3 lg:grid-cols-2 expense-panel">
+            <div class="rounded-xl border border-white/30 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-sm uppercase tracking-[0.14em] text-rose-500" data-expense-selected-label>Selected Day</p>
+                  <p class="text-lg font-semibold" data-expense-selected-date>â€”</p>
+                </div>
+                <span class="focus-pill" data-expense-selected-total>&#8377;0</span>
+              </div>
+              <div class="mt-3 grid gap-3" data-expense-day-list></div>
+            </div>
+            <div class="rounded-xl border border-white/30 p-4">
+              <h3 class="text-lg font-semibold">Add Expense</h3>
+              <p class="muted mt-1 text-sm">Include travel distance, working area, and quick notes.</p>
+              <form class="mt-4 grid gap-3" data-expense-form>
+                <div class="grid gap-3 md:grid-cols-2">
+                  <div class="grid gap-2">
+                    <label class="form-label">Amount (DA) (&#8377;)</label>
+                    <input name="amount" type="number" min="0" step="1" class="form-input" placeholder="1200" required>
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Distance (km)</label>
+                    <input name="distance" type="number" min="0" step="0.1" class="form-input" placeholder="18.5">
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Date</label>
+                    <input name="date" type="date" class="form-input" data-expense-date required>
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Working Area</label>
+                    <input name="workingArea" type="text" class="form-input" placeholder="Central Zone">
+                  </div>
+                  <div class="grid gap-2">
+                    <label class="form-label">Travel Allowance (&#8377;) <span class="muted text-xs">(optional)</span></label>
+                    <input name="travelAllowance" type="number" min="0" step="1" class="form-input" placeholder="0">
+                  </div>
+                </div>
+                <div class="grid gap-2">
+                  <label class="form-label">Remarks</label>
+                  <textarea name="remarks" class="form-textarea" placeholder="Fuel, lunch, toll, local commute"></textarea>
+                </div>
+                <button type="submit" class="btn-brand w-full md:w-fit">Submit Expense</button>
+              </form>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="expense-popup hidden" data-expense-popup>
+    <div class="expense-popup-card glass-card">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">Expense</p>
+          <h3 class="text-xl font-semibold" data-expense-popup-label>Select a date</h3>
+        </div>
+        <button type="button" class="theme-btn" data-expense-popup-close aria-label="Close popup">&times;</button>
+      </div>
+      <div class="mt-3 grid gap-2" data-expense-popup-list></div>
+      <hr class="expense-popup-divider mt-3">
+      <p class="mt-3 text-sm font-semibold uppercase tracking-[0.13em] text-rose-500">Add Expense</p>
+      <form class="mt-2 grid gap-3" data-expense-popup-form>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="grid gap-2">
+            <label class="form-label">Amount (DA) (&#8377;)</label>
+            <input name="amount" type="number" min="0" step="1" class="form-input" placeholder="1200" required>
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Distance (km)</label>
+            <input name="distance" type="number" min="0" step="0.1" class="form-input" placeholder="18.5">
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Date</label>
+            <input name="date" type="date" class="form-input" data-expense-popup-date required>
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Working Area</label>
+            <input name="workingArea" type="text" class="form-input" placeholder="Central Zone">
+          </div>
+          <div class="grid gap-2">
+            <label class="form-label">Travel Allowance (&#8377;) <span class="muted text-xs">(optional)</span></label>
+            <input name="travelAllowance" type="number" min="0" step="1" class="form-input" placeholder="0">
+          </div>
+          <div class="grid gap-2 sm:col-span-2">
+            <label class="form-label">Remarks</label>
+            <textarea name="remarks" class="form-textarea" placeholder="Fuel, lunch, toll, local commute"></textarea>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="btn-brand flex-1">Save Expense</button>
+          <button type="button" class="btn-secondary !px-6" data-expense-popup-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="calendar-popup hidden" data-calendar-popup>
+    <div class="calendar-popup-card glass-card">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.14em] text-rose-500" data-popup-date>Day</p>
+          <h3 class="text-xl font-semibold">Visited Doctors</h3>
+        </div>
+        <button type="button" class="theme-btn" data-popup-close aria-label="Close popup">&times;</button>
+      </div>
+      <div class="mt-4 grid gap-3" data-popup-list></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // Always use remote API in Capacitor app
+    window.SoulApiBase = "https://soul-pharma-v2.onrender.com/api";
+  </script>
+  <script src="assets/js/employee-dashboard.js"></script>
+  <script src="assets/js/capacitor-bridge.js"></script>
+</body>
+</html>
