@@ -255,6 +255,7 @@
       state.token = null; state.employee = null;
       tracker.stop();
       if (_watchId !== null) { try { await cap("Geolocation")?.clearWatch({ id: _watchId }); } catch {} _watchId = null; }
+      if (_socket) { try { _socket.disconnect(); } catch {} _socket = null; }
 
       // Reset login form to a clean state
       const errEl = document.getElementById("login-error");
@@ -794,30 +795,81 @@
   const closeSheet = (id) => document.getElementById(id)?.classList.add("hidden");
 
   // ── Notifications ──────────────────────────────────────
+  let _socket = null;
+
+  const notifPriority = (p) => (p === "urgent" || p === "warning") ? p : "info";
+
+  const renderNotifCard = (n) => {
+    const p    = notifPriority(n.priority);
+    const unread = !n.readAt && !n.read ? " unread" : "";
+    const label = p === "urgent" ? "Urgent" : p === "warning" ? "Warning" : "Info";
+    const timeStr2 = n.createdAt ? new Date(n.createdAt).toLocaleDateString("en-IN", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" }) : "";
+    return `
+      <div class="notif-card ${p}${unread}">
+        <div class="notif-card-title">${n.title || "Notification"}</div>
+        ${n.message ? `<div class="notif-card-body">${n.message}</div>` : ""}
+        <div class="notif-card-meta">
+          <span class="notif-pill ${p}">${label}</span>
+          ${timeStr2 ? `<span>${timeStr2}</span>` : ""}
+        </div>
+      </div>`;
+  };
+
   const fetchNotifications = async () => {
     const listEl = document.getElementById("notif-list");
     const badge  = document.getElementById("notif-badge");
     openSheet("sheet-notifs");
     if (listEl) listEl.innerHTML = `<p class="empty-state">Loading...</p>`;
     try {
-      const data  = await api("/employee/notifications");
+      const data   = await api("/employee/notifications");
       const notifs = data.notifications || [];
-      if (badge) {
-        badge.classList.toggle("visible", notifs.some(n => !n.read));
-      }
+      if (badge) badge.classList.toggle("visible", notifs.some(n => !n.readAt && !n.read));
       if (!listEl) return;
       if (!notifs.length) { listEl.innerHTML = `<p class="empty-state">No notifications yet.</p>`; return; }
-      listEl.innerHTML = notifs.map(n => `
-        <div class="list-item mt-2" style="${n.read ? "" : "border-color:rgba(214,40,57,0.3);"}">
-          <div class="list-body">
-            <p class="list-name" style="font-size:.88rem;">${n.title || n.message || "Notification"}</p>
-            ${n.body || n.message ? `<p class="list-meta mt-1">${n.body || ""}</p>` : ""}
-            ${n.createdAt ? `<p class="list-meta mt-1">${dmy(n.createdAt)}</p>` : ""}
-          </div>
-        </div>`).join("");
-    } catch (err) {
+      listEl.innerHTML = notifs.map(renderNotifCard).join("");
+    } catch {
       if (listEl) listEl.innerHTML = `<p class="empty-state">Failed to load notifications.</p>`;
     }
+  };
+
+  const connectSocket = () => {
+    if (typeof io === "undefined" || !state.token) return;
+    if (_socket) { _socket.disconnect(); _socket = null; }
+    _socket = io(API_BASE.replace("/api", ""), {
+      auth: { token: state.token },
+      transports: ["websocket"],
+      reconnectionAttempts: 5,
+    });
+
+    _socket.on("notification:new", async (payload) => {
+      // Update badge
+      const badge = document.getElementById("notif-badge");
+      if (badge) badge.classList.add("visible");
+
+      // Fire local notification if panel is not open
+      const sheet = document.getElementById("sheet-notifs");
+      const panelOpen = sheet && !sheet.classList.contains("hidden");
+      if (state.notifGranted && !panelOpen) {
+        try {
+          await cap("LocalNotifications")?.schedule({
+            notifications: [{
+              id: Math.floor(Math.random() * 999999) + 1,
+              title: payload.title || "Soul Pharma",
+              body:  payload.message || "",
+              smallIcon: "ic_stat_soul",
+            }],
+          });
+        } catch {}
+      }
+
+      // Prepend card to open panel
+      const listEl = document.getElementById("notif-list");
+      if (listEl && panelOpen) {
+        const empty = listEl.querySelector(".empty-state");
+        if (empty) listEl.innerHTML = "";
+        listEl.insertAdjacentHTML("afterbegin", renderNotifCard({ ...payload, read: false }));
+      }
+    });
   };
 
   // ── Profile photo ──────────────────────────────────────
@@ -935,6 +987,7 @@
     tracker.start();
     sendLocationPing("login");
     startLocationWatch();
+    connectSocket();
     setTimeout(() => loader.hide(), 600);
   };
 
@@ -1175,7 +1228,7 @@
       ["sheet-expense",   "sheet-expense-close",   "sheet-expense-bd"],
       ["sheet-doctor",    "sheet-doctor-close",    "sheet-doctor-bd"],
       ["sheet-activity",  "sheet-activity-close",  "sheet-activity-bd"],
-      ["sheet-notifs",    null,                    "sheet-notifs-bd"],
+      ["sheet-notifs",    "sheet-notifs-close",    "sheet-notifs-bd"],
       ["sheet-exp-detail",null,                    "sheet-exp-detail-bd"],
       ["sheet-profile",   null,                    "sheet-profile-bd"],
     ].forEach(([sheet, closeBtn, backdrop]) => {

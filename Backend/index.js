@@ -79,7 +79,18 @@ io.on("connection", (socket) => {
 setIo(io);
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  const mongoose = require("mongoose");
+  const dbState = mongoose.connection.readyState;
+  // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  const dbStatus = dbState === 1 ? "connected" : "disconnected";
+  const healthy = dbState === 1;
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
+    db: dbStatus,
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use("/api/auth", authRoutes);
