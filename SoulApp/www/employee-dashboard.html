@@ -784,8 +784,11 @@
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
-    // Always use remote API in Capacitor app
-    window.SoulApiBase = "https://soul-pharma-v2.onrender.com/api";
+    window.SoulApiBases = [
+      "https://soul-pharma-v2-5kmg.onrender.com/api",
+      "https://soul-pharma-v2.onrender.com/api"
+    ];
+    window.SoulApiBase = window.SoulApiBases[0];
   </script>
   <script src="assets/js/employee-dashboard.js"></script>
   <script src="assets/js/capacitor-bridge.js"></script>

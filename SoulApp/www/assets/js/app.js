@@ -1,5 +1,46 @@
 (() => {
-  const API_BASE  = "https://soul-pharma-v2.onrender.com/api";
+  const DEFAULT_API_BASES = [
+    "https://soul-pharma-v2-5kmg.onrender.com/api",
+    "https://soul-pharma-v2.onrender.com/api",
+  ];
+  const normalizeApiBase = (value) => {
+    const raw = String(value || "").trim().replace(/\/+$/, "");
+    if (!raw) return "";
+    return /\/api$/.test(raw) ? raw : `${raw}/api`;
+  };
+  const getApiBases = () => {
+    const configured = Array.isArray(window.SoulApiBases)
+      ? window.SoulApiBases
+      : window.SoulApiBases
+        ? [window.SoulApiBases]
+        : window.SoulApiBase
+          ? [window.SoulApiBase]
+          : DEFAULT_API_BASES;
+    return [...new Set(configured.map(normalizeApiBase).filter(Boolean))];
+  };
+  const API_BASES = getApiBases();
+  const API_BASE  = API_BASES[0] || DEFAULT_API_BASES[0];
+  if (!window.SoulApiBases) window.SoulApiBases = API_BASES;
+  if (!window.SoulApiBase) window.SoulApiBase = API_BASE;
+  if (!window.SoulApiFetch) {
+    window.SoulApiFetch = async (path, options = {}) => {
+      let lastError = null;
+      for (let index = 0; index < API_BASES.length; index += 1) {
+        const base = API_BASES[index];
+        try {
+          const response = await fetch(`${base}${path}`, options);
+          if (response.ok || response.status < 500 || index === API_BASES.length - 1) {
+            return response;
+          }
+          lastError = new Error(`Backend returned ${response.status} for ${base}${path}`);
+        } catch (error) {
+          lastError = error;
+          if (index === API_BASES.length - 1) throw error;
+        }
+      }
+      throw lastError || new Error("Unable to reach backend");
+    };
+  }
   const TOKEN_KEY = "soul-employee-token";
 
   const isNative = () => !!window.Capacitor?.isNativePlatform?.();
@@ -49,7 +90,7 @@
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 28000);
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
+      const res = await window.SoulApiFetch(path, {
         signal: controller.signal,
         method: opts.method || "GET",
         headers: {
@@ -835,7 +876,7 @@
   const connectSocket = () => {
     if (typeof io === "undefined" || !state.token) return;
     if (_socket) { _socket.disconnect(); _socket = null; }
-    _socket = io(API_BASE.replace("/api", ""), {
+    _socket = io(API_BASE.replace(/\/api$/, ""), {
       auth: { token: state.token },
       transports: ["websocket"],
       reconnectionAttempts: 5,
