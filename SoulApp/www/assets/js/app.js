@@ -185,6 +185,15 @@
       if (!isNative()) return true;
       try { const s = await cap("Geolocation").requestPermissions(); return s.location === "granted"; } catch { return false; }
     },
+    async openLocationSettings() {
+      if (!isNative()) return false;
+      try {
+        await cap("SoulTracker")?.openLocationSettings();
+        return true;
+      } catch {
+        return false;
+      }
+    },
     async checkNotif() {
       if (!isNative()) return true;
       try { const s = await cap("LocalNotifications").checkPermissions(); return s.display === "granted"; } catch { return false; }
@@ -200,6 +209,24 @@
     if (state.notifGranted) { document.getElementById("notif-granted-tag")?.classList.remove("hidden"); document.getElementById("btn-notif")?.classList.add("hidden"); document.getElementById("perm-card-notif")?.classList.add("granted"); }
     const cont = document.getElementById("btn-perms-continue");
     if (cont) cont.disabled = !state.locGranted;
+  };
+
+  const refreshNativePermissions = async ({ continueOnGrant = false } = {}) => {
+    if (!isNative()) return;
+    try {
+      state.locGranted = await perms.checkLocation();
+    } catch {
+      state.locGranted = false;
+    }
+    try {
+      state.notifGranted = await perms.checkNotif();
+    } catch {
+      state.notifGranted = false;
+    }
+    updatePermUI();
+    if (continueOnGrant && state.locGranted) {
+      await launchDashboard();
+    }
   };
 
   // ── Foreground service ─────────────────────────────────
@@ -1035,8 +1062,16 @@
   // ── After login: permissions gate then dashboard ───────
   const goToPermissionsOrDash = async () => {
     if (!isNative()) { await launchDashboard(); return; }
-    state.locGranted   = await perms.checkLocation();
-    state.notifGranted = await perms.checkNotif();
+    try {
+      state.locGranted = await perms.checkLocation();
+    } catch {
+      state.locGranted = false;
+    }
+    try {
+      state.notifGranted = await perms.checkNotif();
+    } catch {
+      state.notifGranted = false;
+    }
     if (!state.locGranted) {
       loader.hide();
       showScreen("perms");
@@ -1089,10 +1124,22 @@
 
   // ── Permissions screen ─────────────────────────────────
   const bindPermsScreen = () => {
-    document.getElementById("btn-loc")?.addEventListener("click", async () => {
+    const locBtn = document.getElementById("btn-loc");
+    locBtn?.addEventListener("click", async () => {
+      if (locBtn instanceof HTMLButtonElement) {
+        locBtn.disabled = true;
+        locBtn.textContent = "Checking...";
+      }
       state.locGranted = await perms.requestLocation();
-      if (!state.locGranted) toast("Location permission is required.", true);
+      if (!state.locGranted) {
+        toast("GPS is off. Opening location settings.", true);
+        await perms.openLocationSettings();
+      }
       updatePermUI();
+      if (locBtn instanceof HTMLButtonElement) {
+        locBtn.disabled = false;
+        locBtn.textContent = "Grant Location";
+      }
     });
     document.getElementById("btn-notif")?.addEventListener("click", async () => {
       state.notifGranted = await perms.requestNotif();
@@ -1359,5 +1406,17 @@
     }
   };
 
+  const bindAppResume = () => {
+    const app = cap("App");
+    if (!app?.addListener) return;
+    app.addListener("appStateChange", async ({ isActive }) => {
+      if (!isActive) return;
+      if (!document.getElementById("screen-perms")?.classList.contains("hidden")) {
+        await refreshNativePermissions({ continueOnGrant: true });
+      }
+    });
+  };
+
   document.addEventListener("DOMContentLoaded", init);
+  bindAppResume();
 })();

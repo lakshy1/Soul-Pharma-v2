@@ -282,23 +282,14 @@
   };
 
   const request = async (path, options = {}) => {
-    const response = window.SoulApiFetch
-      ? await window.SoulApiFetch(path, {
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-            ...(options.headers || {})
-          },
-          ...options
-        })
-      : await fetch(`${apiBase}${path}`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-            ...(options.headers || {})
-          },
-          ...options
-        });
+    const response = await window.SoulApiFetch(path, {
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...(options.headers || {})
+      },
+      ...options
+    });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.message || "Request failed");
@@ -2051,7 +2042,7 @@
   const exportExpensesPdf = async () => {
     const monthKey = getActiveMonthKey();
     try {
-      const response = await fetch(`${apiBase}/admin/expenses/report/pdf?month=${encodeURIComponent(monthKey)}`, {
+      const response = await window.SoulApiFetch(`/admin/expenses/report/pdf?month=${encodeURIComponent(monthKey)}`, {
         headers: {
           ...authHeaders(),
         },
@@ -2678,7 +2669,7 @@
         return;
       }
       try {
-        const response = await fetch(`${apiBase}/admin/login`, {
+        const response = await window.SoulApiFetch("/admin/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -3033,7 +3024,7 @@
   if (doctorTemplateDownload) {
     doctorTemplateDownload.addEventListener("click", async () => {
       try {
-        const response = await fetch(`${apiBase}/admin/doctors/template`, {
+        const response = await window.SoulApiFetch("/admin/doctors/template", {
           headers: {
             ...authHeaders(),
           },
@@ -3065,7 +3056,7 @@
         return;
       }
       try {
-        const response = await fetch(`${apiBase}/admin/doctors/import`, {
+        const response = await window.SoulApiFetch("/admin/doctors/import", {
           method: "POST",
           headers: {
             ...authHeaders(),
