@@ -2,7 +2,70 @@
   const root = document.documentElement;
   const body = document.body;
   const storageKey = "soul-theme";
-  const getApiBase = () => window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
+  const defaultApiBases = [
+    "https://soul-pharma-v2-5kmg.onrender.com/api",
+    "https://soul-pharma-v2.onrender.com/api",
+    "http://localhost:4000/api",
+  ];
+
+  const normalizeApiBase = (value) => {
+    const raw = String(value || "").trim().replace(/\/+$/, "");
+    if (!raw) {
+      return "";
+    }
+    return /\/api$/.test(raw) ? raw : `${raw}/api`;
+  };
+
+  const getApiBases = () => {
+    const configured = Array.isArray(window.SoulApiBases)
+      ? window.SoulApiBases
+      : window.SoulApiBases
+        ? [window.SoulApiBases]
+        : window.SoulApiBase
+          ? [window.SoulApiBase]
+          : defaultApiBases;
+
+    return [...new Set(configured.map(normalizeApiBase).filter(Boolean))];
+  };
+
+  const getApiBase = () => getApiBases()[0] || defaultApiBases[0];
+
+  if (!window.getSoulApiBases) {
+    window.getSoulApiBases = getApiBases;
+  }
+  if (!window.getSoulApiBase) {
+    window.getSoulApiBase = getApiBase;
+  }
+  if (!window.SoulApiBases) {
+    window.SoulApiBases = getApiBases();
+  }
+  if (!window.SoulApiBase) {
+    window.SoulApiBase = getApiBase();
+  }
+  if (!window.SoulApiFetch) {
+    window.SoulApiFetch = async (path, options = {}) => {
+      const bases = getApiBases();
+      let lastError = null;
+
+      for (let index = 0; index < bases.length; index += 1) {
+        const base = bases[index];
+        try {
+          const response = await fetch(`${base}${path}`, options);
+          if (response.ok || response.status < 500 || index === bases.length - 1) {
+            return response;
+          }
+          lastError = new Error(`Backend returned ${response.status} for ${base}${path}`);
+        } catch (error) {
+          lastError = error;
+          if (index === bases.length - 1) {
+            throw error;
+          }
+        }
+      }
+
+      throw lastError || new Error("Unable to reach backend");
+    };
+  }
 
   function applyTheme(theme) {
     if (theme === "dark") {

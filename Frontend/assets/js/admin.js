@@ -1,6 +1,9 @@
 (() => {
   const body = document.body;
-  const apiBase = window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
+  const apiBase =
+    window.getSoulApiBase?.() ||
+    window.SoulApiBase ||
+    "https://soul-pharma-v2-5kmg.onrender.com/api";
   const routeKey = body.dataset.adminRoute || "";
   const tokenKey = "soul-admin-token";
 
@@ -279,14 +282,23 @@
   };
 
   const request = async (path, options = {}) => {
-    const response = await fetch(`${apiBase}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-        ...(options.headers || {})
-      },
-      ...options
-    });
+    const response = window.SoulApiFetch
+      ? await window.SoulApiFetch(path, {
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+            ...(options.headers || {})
+          },
+          ...options
+        })
+      : await fetch(`${apiBase}${path}`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+            ...(options.headers || {})
+          },
+          ...options
+        });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.message || "Request failed");
@@ -3842,4 +3854,3 @@
     }
   });
 })();
-
