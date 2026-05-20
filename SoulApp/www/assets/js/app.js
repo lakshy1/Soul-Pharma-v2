@@ -263,23 +263,34 @@
   let _watchId = null;
   const startLocationWatch = () => {
     if (!isNative()) return;
-    cap("Geolocation")?.watchPosition({ enableHighAccuracy: true, timeout: 10000 }, async (pos, err) => {
-      if (err || !pos) return;
-      try {
-        await api("/employee/locations", {
-          method: "POST",
-          body: {
-            latitude:  Number(pos.coords.latitude),
-            longitude: Number(pos.coords.longitude),
-            accuracy:  Number(pos.coords.accuracy),
-            source: "gps-update",
-          },
-        });
-        const t = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-        const el = document.getElementById("home-last-sync");
-        if (el) el.textContent = `Synced ${t}`;
-      } catch {}
-    }).then(id => { _watchId = id; }).catch(() => {});
+    const geo = cap("Geolocation");
+    if (!geo?.watchPosition) return;
+
+    try {
+      const watchResult = geo.watchPosition({ enableHighAccuracy: true, timeout: 10000 }, async (pos, err) => {
+        if (err || !pos) return;
+        try {
+          await api("/employee/locations", {
+            method: "POST",
+            body: {
+              latitude:  Number(pos.coords.latitude),
+              longitude: Number(pos.coords.longitude),
+              accuracy:  Number(pos.coords.accuracy),
+              source: "gps-update",
+            },
+          });
+          const t = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+          const el = document.getElementById("home-last-sync");
+          if (el) el.textContent = `Synced ${t}`;
+        } catch {}
+      });
+
+      if (watchResult && typeof watchResult.then === "function") {
+        watchResult.then(id => { _watchId = id; }).catch(() => {});
+      } else if (typeof watchResult === "number") {
+        _watchId = watchResult;
+      }
+    } catch {}
 
     // Heartbeat every 3 minutes
     setInterval(() => sendLocationPing("heartbeat"), 3 * 60 * 1000);
@@ -1052,11 +1063,14 @@
 
     renderHomeHeader();
     loader.snap(100, "All set!");
-    tracker.start();
-    sendLocationPing("login");
-    startLocationWatch();
-    connectSocket();
-    setTimeout(() => loader.hide(), 600);
+
+    // Keep the UI visible even if one of the background startup hooks fails.
+    setTimeout(() => loader.hide(), 350);
+
+    try { tracker.start(); } catch {}
+    void sendLocationPing("login").catch(() => {});
+    try { startLocationWatch(); } catch {}
+    try { connectSocket(); } catch {}
   };
 
   // ── After login: permissions gate then dashboard ───────
