@@ -1301,15 +1301,16 @@
   <script>
     const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const localApi = "http://localhost:4000/api";
-    const remoteApi = "https://soul-pharma-v2.onrender.com/api";
-    window.SoulApiBase = isLocal ? localApi : remoteApi;
-    window.SoulChatbotConfig = { apiBaseUrl: "https://soul-pharma-v2.onrender.com" };
+    const primaryApi = "https://soul-pharma-v2-5kmg.onrender.com/api";
+    const fallbackApi = "https://soul-pharma-v2.onrender.com/api";
+    window.SoulApiBases = isLocal ? [localApi, primaryApi, fallbackApi] : [primaryApi, fallbackApi];
+    window.SoulApiBase = window.SoulApiBases[0];
+    window.SoulChatbotConfig = { apiBaseUrl: window.SoulApiBase };
   </script>
   <script src="assets/js/chatbot.js"></script>
   <script src="assets/js/admin.js"></script>
 </body>
 </html>
-
 
 
 

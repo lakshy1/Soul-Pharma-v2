@@ -787,8 +787,10 @@
   <script>
     const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
     const localApi = "http://localhost:4000/api";
-    const remoteApi = "https://soul-pharma-v2.onrender.com/api";
-    window.SoulApiBase = isLocal ? localApi : remoteApi;
+    const primaryApi = "https://soul-pharma-v2-5kmg.onrender.com/api";
+    const fallbackApi = "https://soul-pharma-v2.onrender.com/api";
+    window.SoulApiBases = isLocal ? [localApi, primaryApi, fallbackApi] : [primaryApi, fallbackApi];
+    window.SoulApiBase = window.SoulApiBases[0];
   </script>
   <script src="assets/js/employee-dashboard.js"></script>
 </body>

@@ -1,5 +1,46 @@
 (() => {
-  const API_BASE  = "https://soul-pharma-v2.onrender.com/api";
+  const DEFAULT_API_BASES = [
+    "https://soul-pharma-v2-5kmg.onrender.com/api",
+    "https://soul-pharma-v2.onrender.com/api",
+  ];
+  const normalizeApiBase = (value) => {
+    const raw = String(value || "").trim().replace(/\/+$/, "");
+    if (!raw) return "";
+    return /\/api$/.test(raw) ? raw : `${raw}/api`;
+  };
+  const getApiBases = () => {
+    const configured = Array.isArray(window.SoulApiBases)
+      ? window.SoulApiBases
+      : window.SoulApiBases
+        ? [window.SoulApiBases]
+        : window.SoulApiBase
+          ? [window.SoulApiBase]
+          : DEFAULT_API_BASES;
+    return [...new Set(configured.map(normalizeApiBase).filter(Boolean))];
+  };
+  const API_BASES = getApiBases();
+  const API_BASE  = API_BASES[0] || DEFAULT_API_BASES[0];
+  if (!window.SoulApiBases) window.SoulApiBases = API_BASES;
+  if (!window.SoulApiBase) window.SoulApiBase = API_BASE;
+  if (!window.SoulApiFetch) {
+    window.SoulApiFetch = async (path, options = {}) => {
+      let lastError = null;
+      for (let index = 0; index < API_BASES.length; index += 1) {
+        const base = API_BASES[index];
+        try {
+          const response = await fetch(`${base}${path}`, options);
+          if (response.ok || response.status < 500 || index === API_BASES.length - 1) {
+            return response;
+          }
+          lastError = new Error(`Backend returned ${response.status} for ${base}${path}`);
+        } catch (error) {
+          lastError = error;
+          if (index === API_BASES.length - 1) throw error;
+        }
+      }
+      throw lastError || new Error("Unable to reach backend");
+    };
+  }
   const TOKEN_KEY = "soul-employee-token";
 
   const isNative = () => !!window.Capacitor?.isNativePlatform?.();
@@ -52,7 +93,7 @@
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 28000);
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
+      const res = await window.SoulApiFetch(path, {
         signal: controller.signal,
         method: opts.method || "GET",
         headers: {
@@ -147,6 +188,15 @@
       if (!isNative()) return true;
       try { const s = await cap("Geolocation").requestPermissions(); return s.location === "granted"; } catch { return false; }
     },
+    async openLocationSettings() {
+      if (!isNative()) return false;
+      try {
+        await cap("SoulTracker")?.openLocationSettings();
+        return true;
+      } catch {
+        return false;
+      }
+    },
     async checkNotif() {
       if (!isNative()) return true;
       try { const s = await cap("LocalNotifications").checkPermissions(); return s.display === "granted"; } catch { return false; }
@@ -162,6 +212,24 @@
     if (state.notifGranted) { document.getElementById("notif-granted-tag")?.classList.remove("hidden"); document.getElementById("btn-notif")?.classList.add("hidden"); document.getElementById("perm-card-notif")?.classList.add("granted"); }
     const cont = document.getElementById("btn-perms-continue");
     if (cont) cont.disabled = !state.locGranted;
+  };
+
+  const refreshNativePermissions = async ({ continueOnGrant = false } = {}) => {
+    if (!isNative()) return;
+    try {
+      state.locGranted = await perms.checkLocation();
+    } catch {
+      state.locGranted = false;
+    }
+    try {
+      state.notifGranted = await perms.checkNotif();
+    } catch {
+      state.notifGranted = false;
+    }
+    updatePermUI();
+    if (continueOnGrant && state.locGranted) {
+      await launchDashboard();
+    }
   };
 
   // ── Foreground service ─────────────────────────────────
@@ -198,23 +266,34 @@
   let _watchId = null;
   const startLocationWatch = () => {
     if (!isNative()) return;
-    cap("Geolocation")?.watchPosition({ enableHighAccuracy: true, timeout: 10000 }, async (pos, err) => {
-      if (err || !pos) return;
-      try {
-        await api("/employee/locations", {
-          method: "POST",
-          body: {
-            latitude:  Number(pos.coords.latitude),
-            longitude: Number(pos.coords.longitude),
-            accuracy:  Number(pos.coords.accuracy),
-            source: "gps-update",
-          },
-        });
-        const t = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-        const el = document.getElementById("home-last-sync");
-        if (el) el.textContent = `Synced ${t}`;
-      } catch {}
-    }).then(id => { _watchId = id; }).catch(() => {});
+    const geo = cap("Geolocation");
+    if (!geo?.watchPosition) return;
+
+    try {
+      const watchResult = geo.watchPosition({ enableHighAccuracy: true, timeout: 10000 }, async (pos, err) => {
+        if (err || !pos) return;
+        try {
+          await api("/employee/locations", {
+            method: "POST",
+            body: {
+              latitude:  Number(pos.coords.latitude),
+              longitude: Number(pos.coords.longitude),
+              accuracy:  Number(pos.coords.accuracy),
+              source: "gps-update",
+            },
+          });
+          const t = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+          const el = document.getElementById("home-last-sync");
+          if (el) el.textContent = `Synced ${t}`;
+        } catch {}
+      });
+
+      if (watchResult && typeof watchResult.then === "function") {
+        watchResult.then(id => { _watchId = id; }).catch(() => {});
+      } else if (typeof watchResult === "number") {
+        _watchId = watchResult;
+      }
+    } catch {}
 
     // Heartbeat every 3 minutes
     setInterval(() => sendLocationPing("heartbeat"), 3 * 60 * 1000);
@@ -959,7 +1038,7 @@
   const connectSocket = () => {
     if (typeof io === "undefined" || !state.token) return;
     if (_socket) { _socket.disconnect(); _socket = null; }
-    _socket = io(API_BASE.replace("/api", ""), {
+    _socket = io(API_BASE.replace(/\/api$/, ""), {
       auth: { token: state.token },
       transports: ["websocket"],
       reconnectionAttempts: 5,
@@ -1108,18 +1187,28 @@
 
     renderHomeHeader();
     loader.snap(100, "All set!");
-    tracker.start();
-    sendLocationPing("login");
-    startLocationWatch();
-    connectSocket();
-    setTimeout(() => loader.hide(), 600);
+    // Keep the UI visible even if one of the background startup hooks fails.
+    setTimeout(() => loader.hide(), 350);
+
+    try { tracker.start(); } catch {}
+    void sendLocationPing("login").catch(() => {});
+    try { startLocationWatch(); } catch {}
+    try { connectSocket(); } catch {}
   };
 
   // ── After login: permissions gate then dashboard ───────
   const goToPermissionsOrDash = async () => {
     if (!isNative()) { await launchDashboard(); return; }
-    state.locGranted   = await perms.checkLocation();
-    state.notifGranted = await perms.checkNotif();
+    try {
+      state.locGranted = await perms.checkLocation();
+    } catch {
+      state.locGranted = false;
+    }
+    try {
+      state.notifGranted = await perms.checkNotif();
+    } catch {
+      state.notifGranted = false;
+    }
     if (!state.locGranted) {
       loader.hide();
       showScreen("perms");
@@ -1172,10 +1261,22 @@
 
   // ── Permissions screen ─────────────────────────────────
   const bindPermsScreen = () => {
-    document.getElementById("btn-loc")?.addEventListener("click", async () => {
+    const locBtn = document.getElementById("btn-loc");
+    locBtn?.addEventListener("click", async () => {
+      if (locBtn instanceof HTMLButtonElement) {
+        locBtn.disabled = true;
+        locBtn.textContent = "Checking...";
+      }
       state.locGranted = await perms.requestLocation();
-      if (!state.locGranted) toast("Location permission is required.", true);
+      if (!state.locGranted) {
+        toast("GPS is off. Opening location settings.", true);
+        await perms.openLocationSettings();
+      }
       updatePermUI();
+      if (locBtn instanceof HTMLButtonElement) {
+        locBtn.disabled = false;
+        locBtn.textContent = "Grant Location";
+      }
     });
     document.getElementById("btn-notif")?.addEventListener("click", async () => {
       state.notifGranted = await perms.requestNotif();
@@ -1442,5 +1543,17 @@
     }
   };
 
+  const bindAppResume = () => {
+    const app = cap("App");
+    if (!app?.addListener) return;
+    app.addListener("appStateChange", async ({ isActive }) => {
+      if (!isActive) return;
+      if (!document.getElementById("screen-perms")?.classList.contains("hidden")) {
+        await refreshNativePermissions({ continueOnGrant: true });
+      }
+    });
+  };
+
   document.addEventListener("DOMContentLoaded", init);
+  bindAppResume();
 })();

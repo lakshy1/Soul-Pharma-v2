@@ -41,7 +41,48 @@
   // ─────────────────────────────────────────────────────────
 
   const tokenKey = "soul-employee-token";
-  const apiBase = window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
+  const defaultApiBases = [
+    "https://soul-pharma-v2-5kmg.onrender.com/api",
+    "https://soul-pharma-v2.onrender.com/api",
+  ];
+  const normalizeApiBase = (value) => {
+    const raw = String(value || "").trim().replace(/\/+$/, "");
+    if (!raw) return "";
+    return /\/api$/.test(raw) ? raw : `${raw}/api`;
+  };
+  const getApiBases = () => {
+    const configured = Array.isArray(window.SoulApiBases)
+      ? window.SoulApiBases
+      : window.SoulApiBases
+        ? [window.SoulApiBases]
+        : window.SoulApiBase
+          ? [window.SoulApiBase]
+          : defaultApiBases;
+    return [...new Set(configured.map(normalizeApiBase).filter(Boolean))];
+  };
+  const apiBases = getApiBases();
+  const apiBase = apiBases[0] || defaultApiBases[0];
+  if (!window.SoulApiBases) window.SoulApiBases = apiBases;
+  if (!window.SoulApiBase) window.SoulApiBase = apiBase;
+  if (!window.SoulApiFetch) {
+    window.SoulApiFetch = async (path, options = {}) => {
+      let lastError = null;
+      for (let index = 0; index < apiBases.length; index += 1) {
+        const base = apiBases[index];
+        try {
+          const response = await fetch(`${base}${path}`, options);
+          if (response.ok || response.status < 500 || index === apiBases.length - 1) {
+            return response;
+          }
+          lastError = new Error(`Backend returned ${response.status} for ${base}${path}`);
+        } catch (error) {
+          lastError = error;
+          if (index === apiBases.length - 1) throw error;
+        }
+      }
+      throw lastError || new Error("Unable to reach backend");
+    };
+  }
   const token = localStorage.getItem(tokenKey);
 
   if (!token) {
@@ -233,7 +274,7 @@
   };
 
   const request = async (path, options = {}) => {
-    const response = await fetch(`${apiBase}${path}`, {
+    const response = await window.SoulApiFetch(path, {
       headers: { "Content-Type": "application/json", ...headers(), ...(options.headers || {}) },
       ...options,
     });
@@ -1426,7 +1467,6 @@
   setSection("overview");
   init();
 })();
-
 
 
 

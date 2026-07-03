@@ -1,6 +1,6 @@
 {
   "appId": "com.soulpharma.app",
-  "appName": "Soul Pharma",
+  "appName": "Soul",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

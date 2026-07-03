@@ -1,14 +1,10 @@
 ﻿(() => {
   const config = window.SoulChatbotConfig || {};
-  const globalApiBase = window.SoulApiBase || "";
-  const origin = window.location.origin;
-  const isFile = window.location.protocol === "file:" || origin === "null";
   const apiBase =
     config.apiBaseUrl ||
-    globalApiBase ||
-    (isFile || origin.includes("localhost")
-      ? "https://soul-pharma-v2.onrender.com"
-      : origin);
+    window.getSoulApiBase?.() ||
+    window.SoulApiBase ||
+    "https://soul-pharma-v2-5kmg.onrender.com/api";
 
   const root = document.createElement("div");
   root.className = "soul-chatbot";
@@ -93,11 +89,17 @@
     const typingBubble = addTyping();
 
     try {
-      const response = await fetch(`${apiBase}/api/chatbot/message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: state.messages }),
-      });
+      const response = await (window.SoulApiFetch
+        ? window.SoulApiFetch("/chatbot/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: state.messages }),
+          })
+        : fetch(`${apiBase}/chatbot/message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: state.messages }),
+          }));
 
       if (!response.ok) {
         let detail = "";

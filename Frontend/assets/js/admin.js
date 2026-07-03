@@ -1,6 +1,9 @@
 (() => {
   const body = document.body;
-  const apiBase = window.SoulApiBase || "https://soul-pharma-v2.onrender.com/api";
+  const apiBase =
+    window.getSoulApiBase?.() ||
+    window.SoulApiBase ||
+    "https://soul-pharma-v2-5kmg.onrender.com/api";
   const routeKey = body.dataset.adminRoute || "";
   const tokenKey = "soul-admin-token";
 
@@ -279,7 +282,7 @@
   };
 
   const request = async (path, options = {}) => {
-    const response = await fetch(`${apiBase}${path}`, {
+    const response = await window.SoulApiFetch(path, {
       headers: {
         "Content-Type": "application/json",
         ...authHeaders(),
@@ -2039,7 +2042,7 @@
   const exportExpensesPdf = async () => {
     const monthKey = getActiveMonthKey();
     try {
-      const response = await fetch(`${apiBase}/admin/expenses/report/pdf?month=${encodeURIComponent(monthKey)}`, {
+      const response = await window.SoulApiFetch(`/admin/expenses/report/pdf?month=${encodeURIComponent(monthKey)}`, {
         headers: {
           ...authHeaders(),
         },
@@ -2666,7 +2669,7 @@
         return;
       }
       try {
-        const response = await fetch(`${apiBase}/admin/login`, {
+        const response = await window.SoulApiFetch("/admin/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -3021,7 +3024,7 @@
   if (doctorTemplateDownload) {
     doctorTemplateDownload.addEventListener("click", async () => {
       try {
-        const response = await fetch(`${apiBase}/admin/doctors/template`, {
+        const response = await window.SoulApiFetch("/admin/doctors/template", {
           headers: {
             ...authHeaders(),
           },
@@ -3053,7 +3056,7 @@
         return;
       }
       try {
-        const response = await fetch(`${apiBase}/admin/doctors/import`, {
+        const response = await window.SoulApiFetch("/admin/doctors/import", {
           method: "POST",
           headers: {
             ...authHeaders(),
@@ -3842,4 +3845,3 @@
     }
   });
 })();
-

@@ -2,6 +2,7 @@ package com.soulpharma.app
 
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -57,5 +58,14 @@ class SoulTrackerPlugin : Plugin() {
     fun isRunning(call: PluginCall) {
         val running = LocationForegroundService.isRunning
         call.resolve(JSObject().put("running", running))
+    }
+
+    @PluginMethod
+    fun openLocationSettings(call: PluginCall) {
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        call.resolve(JSObject().put("opened", true))
     }
 }
