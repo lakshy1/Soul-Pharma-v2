@@ -49,7 +49,7 @@
   // ── State ──────────────────────────────────────────────
   const state = {
     token: null, employee: null, tab: "home",
-    doctors: [], activities: [], expenses: [], products: [],
+    doctors: [], activities: [], expenses: [],
     expenseMonth: new Date(),
     calMonth: new Date(), calCache: {},
     locGranted: false, notifGranted: false,
@@ -175,7 +175,6 @@
     if (tab === "expenses")   loadExpenses();
     if (tab === "doctors")    renderDoctors();
     if (tab === "activities") renderActivities();
-    if (tab === "products")   loadProducts();
   };
 
   // ── Permissions ────────────────────────────────────────

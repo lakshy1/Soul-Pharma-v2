@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>Download Soul</title>
+  <link rel="icon" href="../assets/images/soul-logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: Manrope, sans-serif;
+      color: #f8fbff;
+      background:
+        radial-gradient(circle at top left, rgba(214, 40, 57, 0.28), transparent 32%),
+        radial-gradient(circle at right center, rgba(96, 165, 250, 0.20), transparent 28%),
+        linear-gradient(160deg, #07111f 0%, #0b1730 45%, #050814 100%);
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    .shell { position: relative; min-height: 100vh; padding: 28px 18px 24px; display: grid; place-items: center; isolation: isolate; }
+    .shell::before,.shell::after { content: ""; position: absolute; width: 36vw; height: 36vw; border-radius: 50%; filter: blur(24px); opacity: .45; pointer-events: none; z-index: -1; animation: float 10s ease-in-out infinite; }
+    .shell::before { background: rgba(214,40,57,.22); top: -8vw; left: -10vw; }
+    .shell::after { background: rgba(96,165,250,.18); right: -10vw; bottom: -10vw; animation-delay: -4s; }
+    @keyframes float { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-18px,0) scale(1.06); } }
+    .grid { width: min(1120px, 100%); display: grid; grid-template-columns: 1.1fr .9fr; gap: 26px; align-items: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid rgba(255,255,255,.10); border-radius: 999px; background: rgba(255,255,255,.05); color: rgba(248,251,255,.82); font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 800; margin-bottom: 18px; backdrop-filter: blur(10px); }
+    .eyebrow-dot { width: 8px; height: 8px; border-radius: 50%; background: #d62839; box-shadow: 0 0 20px rgba(214,40,57,.75); }
+    h1 { font-family: Sora, sans-serif; font-size: clamp(2.8rem, 5vw, 5.6rem); line-height: .95; margin: 0; letter-spacing: -.05em; max-width: 10ch; }
+    .lead { margin: 20px 0 0; max-width: 56ch; font-size: clamp(1rem, 1.8vw, 1.15rem); line-height: 1.7; color: rgba(248,251,255,.76); }
+    .actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 54px; padding: 0 22px; border-radius: 16px; font-weight: 800; letter-spacing: .01em; transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: linear-gradient(135deg, #d62839 0%, #ff5c70 100%); box-shadow: 0 18px 34px rgba(214,40,57,.30); }
+    .btn-secondary { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); color: rgba(248,251,255,.88); backdrop-filter: blur(10px); }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; color: rgba(248,251,255,.58); font-size: .88rem; }
+    .meta-pill { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: rgba(255,255,255,.04); }
+    .device { position: relative; width: min(420px, 100%); margin-inline: auto; aspect-ratio: 0.86; border-radius: 38px; padding: 14px; background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.10); box-shadow: 0 30px 80px rgba(0,0,0,.40); backdrop-filter: blur(18px); transform: perspective(1200px) rotateY(-11deg) rotateX(6deg); animation: bob 5s ease-in-out infinite; }
+    @keyframes bob { 0%,100% { transform: perspective(1200px) rotateY(-11deg) rotateX(6deg) translateY(0); } 50% { transform: perspective(1200px) rotateY(-11deg) rotateX(6deg) translateY(-10px); } }
+    .device-screen { height: 100%; border-radius: 28px; background: radial-gradient(circle at top, rgba(214,40,57,.20), transparent 40%), linear-gradient(180deg, #111b32 0%, #09111f 100%); border: 1px solid rgba(255,255,255,.08); overflow: hidden; position: relative; }
+    .device-screen::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(180deg, rgba(0,0,0,.65), transparent 92%); }
+    .brand-lockup { position: relative; padding: 26px 24px 0; display: flex; align-items: center; gap: 14px; }
+    .logo { width: 60px; height: 60px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); object-fit: cover; }
+    .brand-title { margin: 0; font-family: Sora, sans-serif; font-weight: 800; font-size: 1.2rem; }
+    .brand-sub { margin-top: 4px; color: rgba(248,251,255,.56); font-size: .82rem; }
+    .mock-card { position: relative; margin: 20px 18px 0; padding: 18px; border-radius: 22px; background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+    .pulse { position: absolute; right: 18px; top: 18px; width: 11px; height: 11px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.45); animation: pulse 1.8s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,.35); } 70% { box-shadow: 0 0 0 14px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+    .mock-line { height: 12px; border-radius: 999px; background: rgba(255,255,255,.08); margin-top: 12px; overflow: hidden; position: relative; }
+    .mock-line::after { content: ""; position: absolute; inset: 0; width: 55%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); animation: sweep 2.2s infinite; }
+    @keyframes sweep { from { transform: translateX(-110%); } to { transform: translateX(220%); } }
+    .stats { position: absolute; left: 18px; right: 18px; bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stat { padding: 12px 10px; text-align: center; border-radius: 18px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
+    .stat strong { display: block; font-family: Sora, sans-serif; font-size: 1.05rem; margin-bottom: 4px; }
+    .stat span { color: rgba(248,251,255,.56); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+    .floating { position: absolute; inset: 0; pointer-events: none; }
+    .float-chip { position: absolute; padding: 10px 14px; border-radius: 999px; font-size: .82rem; font-weight: 800; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); backdrop-filter: blur(12px); animation: drift 6s ease-in-out infinite; }
+    .chip-1 { left: 10%; top: 13%; animation-delay: -1s; }
+    .chip-2 { right: 7%; top: 24%; animation-delay: -3s; }
+    .chip-3 { left: 8%; bottom: 18%; animation-delay: -2s; }
+    @keyframes drift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    .foot { width: min(1120px, 100%); margin-top: 28px; display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; color: rgba(248,251,255,.5); font-size: .82rem; }
+    .download-note { display: inline-flex; align-items: center; gap: 8px; }
+    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } h1 { max-width: 100%; } .device { transform: none; animation: bob-mobile 5s ease-in-out infinite; } @keyframes bob-mobile { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } } }
+    @media (max-width: 640px) { .shell { padding: 18px 14px 22px; } .actions { flex-direction: column; } .btn { width: 100%; } .foot { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="grid">
+      <div>
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Official Android Download</div>
+        <h1>Download Soul APK</h1>
+        <p class="lead">Get the Soul Android app with a polished, high-contrast theme designed for a premium experience. Tap the button below to download the APK from this route.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="Soul.apk" download>Download Soul APK <span aria-hidden="true">↓</span></a>
+          <a class="btn btn-secondary" href="Soul.apk" download>Direct file link</a>
+        </div>
+      </div>
+      <div style="position:relative;">
+        <div class="floating">
+          <div class="float-chip chip-1">Secure build</div>
+          <div class="float-chip chip-2">Soul UI</div>
+          <div class="float-chip chip-3">Fast install</div>
+        </div>
+        <div class="device" aria-hidden="true">
+          <div class="device-screen">
+            <div class="brand-lockup">
+              <img class="logo" src="../assets/images/soul-logo.jpg" alt="">
+              <div>
+                <p class="brand-title">Soul</p>
+                <div class="brand-sub">Download and install the APK</div>
+              </div>
+            </div>
+            <div class="mock-card">
+              <div class="pulse"></div>
+              <div class="mock-line" style="width:78%;"></div>
+              <div class="mock-line" style="width:92%;"></div>
+              <div class="mock-line" style="width:64%;"></div>
+              <div class="mock-line" style="width:85%;"></div>
+            </div>
+            <div class="stats">
+              <div class="stat"><strong>APK</strong><span>Ready</span></div>
+              <div class="stat"><strong>UI</strong><span>Theme</span></div>
+              <div class="stat"><strong>Tap</strong><span>Install</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <footer class="foot">
+      <div class="download-note">File: <strong>Soul.apk</strong></div>
+      <div>Built for Android and hosted only on <code>/app-download</code>.</div>
+    </footer>
+  </main>
+</body>
+</html>

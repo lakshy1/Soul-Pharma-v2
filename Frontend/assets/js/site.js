@@ -1428,7 +1428,6 @@
   setupBusinessEnhancements();
   setupNewsroomData();
   setupBusinessData();
-  setupHomepageProducts();
   setupContactForm();
 })();
 
