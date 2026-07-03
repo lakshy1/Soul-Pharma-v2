@@ -897,6 +897,77 @@
       .catch(() => setError());
   }
 
+  function setupHomepageProducts() {
+    if (body.dataset.page !== "home") {
+      return;
+    }
+
+    const grid = document.querySelector("[data-home-products]");
+    if (!grid) {
+      return;
+    }
+
+    const apiBase = getApiBase();
+    const fallbackItems = [
+      {
+        title: "Cardiology & Critical Care",
+        subtitle: "Heart health therapies trusted by specialists.",
+        imageUrl: "Images/Business-Medicine.jpg",
+        medicines: ["Cardiovate", "Vasotone", "Clopimax", "Statrive"]
+      },
+      {
+        title: "Gynecology & Womenâ€™s Health",
+        subtitle: "End-to-end care for every life stage.",
+        imageUrl: "Images/Gyn.jpg",
+        medicines: ["Gynova", "Ovacare", "Ferrovia", "PregoCal"]
+      },
+      {
+        title: "Neurology & Pain",
+        subtitle: "Targeted relief for nerve and pain management.",
+        imageUrl: "Images/NP.jpg",
+        medicines: ["Neurogain", "Nervax", "Painlax", "Migraease"]
+      }
+    ];
+
+    const normalizeItems = (items = []) =>
+      items.map((item, index) => {
+        const fallback = fallbackItems[index % fallbackItems.length];
+        return {
+          title: item?.title || fallback.title,
+          subtitle: item?.subtitle || fallback.subtitle,
+          imageUrl: item?.imageUrl || fallback.imageUrl,
+          medicines: Array.isArray(item?.medicines) && item.medicines.length ? item.medicines : fallback.medicines
+        };
+      });
+
+    const renderCard = (item) => `
+      <article class="glass-card overflow-hidden !p-0">
+        <img src="${item.imageUrl}" alt="${item.title}" class="h-48 w-full object-cover">
+        <div class="p-5">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-500">Product Family</p>
+          <h3 class="mt-2 text-xl font-semibold">${item.title}</h3>
+          <p class="muted mt-2 text-sm">${item.subtitle}</p>
+          <div class="mt-4 flex flex-wrap gap-2">
+            ${(item.medicines || []).slice(0, 4).map((med) => `<span class="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:text-slate-300">${med}</span>`).join("")}
+          </div>
+        </div>
+      </article>
+    `;
+
+    const setFallback = () => {
+      grid.innerHTML = normalizeItems(fallbackItems).map(renderCard).join("");
+    };
+
+    fetch(`${apiBase}/business/focus-areas`)
+      .then((response) => response.json())
+      .then((data) => {
+        const items = Array.isArray(data.items) ? data.items : [];
+        const normalized = items.length ? normalizeItems(items) : normalizeItems(fallbackItems);
+        grid.innerHTML = normalized.map(renderCard).join("");
+      })
+      .catch(() => setFallback());
+  }
+
   function setupContactForm() {
     const form = document.querySelector("[data-contact-form]");
     const toastStack = document.querySelector(".toast-stack");
@@ -1357,6 +1428,7 @@
   setupBusinessEnhancements();
   setupNewsroomData();
   setupBusinessData();
+  setupHomepageProducts();
   setupContactForm();
 })();
 
