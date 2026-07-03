@@ -414,37 +414,191 @@
     .td-name { font-weight: 700; }
     .td-comp { color: var(--muted); font-size: .76rem; }
 
-    /* ── Product full-screen preview ─────────────────────── */
+    /* ── Product full-screen viewer ──────────────────────── */
     #product-preview {
-      position: fixed; inset: 0; z-index: 500;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
       background: #000;
-      display: flex; flex-direction: column;
-      touch-action: pan-y;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+      touch-action: none;
     }
-    #product-preview.hidden { display: none; }
-    .prev-top {
-      position: absolute; top: 0; left: 0; right: 0;
-      padding: calc(var(--safe-t) + .75rem) 1rem .75rem;
-      display: flex; align-items: center; justify-content: space-between;
-      background: linear-gradient(to bottom,rgba(0,0,0,.75) 0%,transparent 100%);
-      z-index: 10;
+    #product-preview.is-open {
+      opacity: 1;
+      pointer-events: auto;
     }
-    .prev-bottom {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      padding: .75rem 1.25rem calc(var(--safe-b) + .75rem);
-      display: flex; align-items: center; justify-content: center; gap: 1rem;
-      background: linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 100%);
-      z-index: 10;
+    @media (prefers-reduced-motion: reduce) {
+      #product-preview { transition: none; }
     }
-    .prev-img-wrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
-    .prev-img { max-width: 100%; max-height: 100%; object-fit: contain; transition: opacity .2s; user-select: none; -webkit-user-drag: none; }
-    .prev-ctrl { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.15); color: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.25); flex-shrink: 0; }
-    .prev-ctrl:disabled { opacity: .3; }
-    .prev-counter { color: rgba(255,255,255,.7); font-size: .78rem; font-weight: 600; min-width: 50px; text-align: center; }
-    .prev-orient { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.2); }
-    .prev-name { font-size: .85rem; font-weight: 700; color: #fff; flex: 1; text-align: center; }
-    .prev-close { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.15); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-    .prev-no-img { color: rgba(255,255,255,.3); font-size: .9rem; text-align: center; }
+    .viewer-top {
+      position: absolute;
+      inset: 0 0 auto 0;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      gap: .75rem;
+      padding: calc(var(--safe-t) + .8rem) 1rem .75rem;
+      z-index: 4;
+      background: linear-gradient(to bottom, rgba(0,0,0,.72), rgba(0,0,0,0));
+    }
+    .viewer-title-wrap { justify-self: center; text-align: center; min-width: 0; }
+    .viewer-name {
+      margin: 0;
+      font-family: 'Sora', sans-serif;
+      font-size: clamp(1rem, 2.6vw, 1.5rem);
+      font-weight: 800;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .viewer-counter {
+      display: inline-flex;
+      margin-top: .45rem;
+      padding: .28rem .75rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.15);
+      color: rgba(255,255,255,.75);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .viewer-close, .viewer-nav, .viewer-zoom {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: transform .15s ease, background .15s ease, opacity .15s ease;
+    }
+    .viewer-close:hover, .viewer-nav:hover, .viewer-zoom:hover { background: rgba(255,255,255,.16); transform: translateY(-1px); }
+    .viewer-close:focus-visible, .viewer-nav:focus-visible, .viewer-zoom:focus-visible { outline: 2px solid #e5484d; outline-offset: 2px; }
+    .viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 4;
+      width: 52px;
+      height: 52px;
+    }
+    .viewer-nav.prev { left: 1rem; }
+    .viewer-nav.next { right: 1rem; }
+    .viewer-stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: #000;
+    }
+    .viewer-skeleton {
+      position: absolute;
+      width: min(72vw, 460px);
+      height: min(72vw, 460px);
+      max-width: 82vw;
+      max-height: 72vh;
+      border-radius: 28px;
+      background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.09), rgba(255,255,255,.04));
+      background-size: 220% 100%;
+      animation: viewer-shimmer 1.35s linear infinite;
+      opacity: .55;
+      filter: blur(1px);
+    }
+    @keyframes viewer-shimmer { from { background-position: 0% 50%; } to { background-position: 220% 50%; } }
+    .viewer-image {
+      max-width: min(92vw, 1100px);
+      max-height: 82vh;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-drag: none;
+      transform: translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0) scale(var(--scale, 1));
+      transition: transform .18s ease, opacity .18s ease;
+      will-change: transform;
+      opacity: 1;
+    }
+    .viewer-controls {
+      position: absolute;
+      inset: auto 0 calc(var(--safe-b) + 1rem) 0;
+      display: grid;
+      justify-items: center;
+      gap: .95rem;
+      z-index: 4;
+      pointer-events: none;
+    }
+    .viewer-zoombar {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .4rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .viewer-dot-row {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .45rem .8rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    .viewer-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.42);
+      transition: width .18s ease, background .18s ease, transform .18s ease;
+    }
+    .viewer-dot.active {
+      width: 22px;
+      background: #e5484d;
+      transform: scale(1.02);
+    }
+    .viewer-zoom:disabled, .viewer-nav:disabled { opacity: .25; pointer-events: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .viewer-skeleton { animation: none; }
+      .viewer-image, .viewer-close, .viewer-nav, .viewer-zoom, .viewer-dot { transition: none; }
+    }
+
+    /* ── Notification cards ──────────────────────────────── */
+    .notif-card {
+      border-radius: 14px; padding: .85rem 1rem; margin-bottom: .55rem;
+      background: var(--surface); border: 1px solid var(--border);
+      border-left-width: 3px; position: relative;
+    }
+    .notif-card.info    { border-left-color: #3b82f6; }
+    .notif-card.warning { border-left-color: #f59e0b; background: rgba(245,158,11,.07); }
+    .notif-card.urgent  { border-left-color: #ef4444; background: rgba(239,68,68,.07); }
+    .notif-card.unread::after {
+      content: ""; position: absolute; top: .7rem; right: .7rem;
+      width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    }
+    .notif-card-title { font-size: .9rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .notif-card-body  { font-size: .8rem; color: var(--muted); margin-top: .25rem; line-height: 1.4; }
+    .notif-card-meta  { font-size: .72rem; color: var(--muted); margin-top: .4rem; display: flex; align-items: center; gap: .5rem; }
+    .notif-pill {
+      display: inline-flex; align-items: center; padding: 1px 7px;
+      border-radius: 20px; font-size: .65rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .notif-pill.info    { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .notif-pill.warning { background: rgba(245,158,11,.15); color: #fbbf24; }
+    .notif-pill.urgent  { background: rgba(239,68,68,.15);  color: #f87171; }
 
     /* ── Exit dialog ─────────────────────────────────────── */
     #exit-dialog {
@@ -888,10 +1042,15 @@
   <!-- Notifications Sheet -->
   <div class="bottom-sheet hidden" id="sheet-notifs">
     <div class="sheet-backdrop" id="sheet-notifs-bd"></div>
-    <div class="sheet-card">
+    <div class="sheet-card" style="display:flex;flex-direction:column;max-height:85vh;overflow:hidden;">
       <div class="sheet-handle"></div>
-      <p class="sheet-title">Notifications</p>
-      <div id="notif-list"><p class="empty-state">Loading...</p></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-shrink:0;">
+        <p class="sheet-title" style="margin:0;">Notifications</p>
+        <button id="sheet-notifs-close" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="notif-list" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;padding-bottom:.5rem;"><p class="empty-state">Loading...</p></div>
     </div>
   </div>
 
@@ -961,26 +1120,40 @@
   </div>
 
   <!-- Product full-screen image preview -->
-  <div id="product-preview" class="hidden">
-    <div class="prev-top">
-      <button class="prev-orient" id="prev-orient-btn" title="Toggle orientation">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+  <div id="product-preview" class="viewer" aria-hidden="true">
+    <div class="viewer-top">
+      <button class="viewer-close" id="prev-close-btn" aria-label="Close viewer">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18"/><path d="M6 6 18 18"/></svg>
       </button>
-      <p class="prev-name" id="prev-name">–</p>
-      <button class="prev-close" id="prev-close-btn">✕</button>
+      <div class="viewer-title-wrap">
+        <p class="viewer-name" id="prev-name">Product</p>
+        <span class="viewer-counter" id="prev-counter">1 / 1</span>
+      </div>
+      <div></div>
     </div>
-    <div class="prev-img-wrap" id="prev-img-wrap">
-      <img class="prev-img" id="prev-img" alt="" draggable="false">
-      <p class="prev-no-img hidden" id="prev-no-img">No image available</p>
+    <button class="viewer-nav prev" id="prev-btn-prev" aria-label="Previous image">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18 9 12l6-6"/></svg>
+    </button>
+    <button class="viewer-nav next" id="prev-btn-next" aria-label="Next image">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+    <div class="viewer-stage" id="prev-img-wrap">
+      <div class="viewer-skeleton" id="viewerSkeleton"></div>
+      <img class="viewer-image" id="prev-img" alt="" draggable="false">
     </div>
-    <div class="prev-bottom">
-      <button class="prev-ctrl" id="prev-btn-prev">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <span class="prev-counter" id="prev-counter">1 / 1</span>
-      <button class="prev-ctrl" id="prev-btn-next">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
+    <div class="viewer-controls">
+      <div class="viewer-zoombar">
+        <button class="viewer-zoom" id="viewer-zoom-out" aria-label="Zoom out">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M8 11h6"/><path d="m16 16 4 4"/></svg>
+        </button>
+        <button class="viewer-zoom" id="viewer-reset" aria-label="Reset zoom">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        </button>
+        <button class="viewer-zoom" id="viewer-zoom-in" aria-label="Zoom in">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M11 8v6"/><path d="M8 11h6"/><path d="m16 16 4 4"/></svg>
+        </button>
+      </div>
+      <div class="viewer-dot-row" id="viewerDots" aria-label="Product image pagination"></div>
     </div>
   </div>
 
@@ -1003,6 +1176,7 @@
     </div>
   </div>
 
+  <script src="https://soul-pharma-v2.onrender.com/socket.io/socket.io.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>

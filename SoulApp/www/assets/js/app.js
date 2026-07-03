@@ -15,6 +15,9 @@
     selectedDoctorId: null, selectedDoctor: null,
     selectedExpDay: null,
     previewIdx: 0,
+    viewerScale: 1,
+    viewerPanX: 0,
+    viewerPanY: 0,
   };
 
   // ── Formatting ─────────────────────────────────────────
@@ -255,6 +258,7 @@
       state.token = null; state.employee = null;
       tracker.stop();
       if (_watchId !== null) { try { await cap("Geolocation")?.clearWatch({ id: _watchId }); } catch {} _watchId = null; }
+      if (_socket) { try { _socket.disconnect(); } catch {} _socket = null; }
 
       // Reset login form to a clean state
       const errEl = document.getElementById("login-error");
@@ -624,92 +628,213 @@
   };
 
   // ── Product preview ────────────────────────────────────
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const resetViewerTransform = () => {
+    state.viewerScale = 1;
+    state.viewerPanX = 0;
+    state.viewerPanY = 0;
+  };
+  const applyViewerTransform = () => {
+    const img = document.getElementById("prev-img");
+    if (!img) return;
+    img.style.setProperty("--scale", state.viewerScale);
+    img.style.setProperty("--pan-x", `${state.viewerPanX}px`);
+    img.style.setProperty("--pan-y", `${state.viewerPanY}px`);
+  };
+  const updateViewerDots = () => {
+    const dots = document.getElementById("viewerDots");
+    if (!dots) return;
+    dots.innerHTML = state.products.map((_, i) => `<button type="button" class="viewer-dot${i === state.previewIdx ? " active" : ""}" data-dot="${i}" aria-label="Image ${i + 1}"></button>`).join("");
+    dots.querySelectorAll("[data-dot]").forEach(dot => dot.addEventListener("click", () => {
+      state.previewIdx = Number(dot.dataset.dot);
+      updatePreviewSlide();
+    }));
+  };
+  const bindViewerFocusTrap = () => {
+    const overlay = document.getElementById("product-preview");
+    if (!overlay || overlay.dataset.trapBound) return;
+    overlay.dataset.trapBound = "1";
+    overlay.addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      const items = [...overlay.querySelectorAll("button")].filter(b => !b.disabled);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  };
   const openProductPreview = (idx) => {
     state.previewIdx = Math.max(0, Math.min(idx, state.products.length - 1));
     const overlay = document.getElementById("product-preview");
     if (!overlay) return;
+    overlay.dataset.restoreFocus = document.activeElement?.id || "";
+    document.body.style.overflow = "hidden";
     overlay.classList.remove("hidden");
+    requestAnimationFrame(() => overlay.classList.add("is-open"));
+    overlay.setAttribute("aria-hidden", "false");
+    bindViewerFocusTrap();
     updatePreviewSlide();
+    document.getElementById("prev-close-btn")?.focus();
   };
-
   const closeProductPreview = () => {
-    document.getElementById("product-preview")?.classList.add("hidden");
-    try { screen.orientation?.unlock?.(); } catch {}
+    const overlay = document.getElementById("product-preview");
+    if (!overlay) return;
+    overlay.classList.remove("is-open");
+    overlay.setAttribute("aria-hidden", "true");
+    const finish = () => {
+      overlay.classList.add("hidden");
+      document.body.style.overflow = "";
+      const id = overlay.dataset.restoreFocus;
+      if (id) document.getElementById(id)?.focus?.();
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
+    else setTimeout(finish, 200);
   };
-
   const updatePreviewSlide = () => {
     const p = state.products[state.previewIdx];
     if (!p) return;
-    const imgEl   = document.getElementById("prev-img");
-    const noImgEl = document.getElementById("prev-no-img");
-    const nameEl  = document.getElementById("prev-name");
+    const imgEl = document.getElementById("prev-img");
+    const nameEl = document.getElementById("prev-name");
     const counter = document.getElementById("prev-counter");
     const prevBtn = document.getElementById("prev-btn-prev");
     const nextBtn = document.getElementById("prev-btn-next");
-
-    if (nameEl) nameEl.textContent = p.name;
+    const skeleton = document.getElementById("viewerSkeleton");
+    if (nameEl) nameEl.textContent = p.name || "Product";
     if (counter) counter.textContent = `${state.previewIdx + 1} / ${state.products.length}`;
-    if (prevBtn) prevBtn.disabled = state.previewIdx === 0;
-    if (nextBtn) nextBtn.disabled = state.previewIdx === state.products.length - 1;
-
-    if (imgEl && noImgEl) {
-      if (p.imageUrl) {
-        imgEl.style.opacity = "0";
-        imgEl.src = p.imageUrl;
-        imgEl.classList.remove("hidden");
-        noImgEl.classList.add("hidden");
-        imgEl.onload = () => { imgEl.style.opacity = "1"; };
-        imgEl.onerror = () => { imgEl.classList.add("hidden"); noImgEl.classList.remove("hidden"); };
-      } else {
-        imgEl.classList.add("hidden");
-        noImgEl.classList.remove("hidden");
-      }
+    if (prevBtn) prevBtn.disabled = state.products.length <= 1;
+    if (nextBtn) nextBtn.disabled = state.products.length <= 1;
+    resetViewerTransform();
+    applyViewerTransform();
+    if (imgEl) {
+      if (skeleton) skeleton.style.display = "";
+      imgEl.style.opacity = "0";
+      imgEl.src = p.imageUrl || "";
+      imgEl.onload = () => { if (skeleton) skeleton.style.display = "none"; imgEl.style.opacity = "1"; };
+      imgEl.onerror = () => { if (skeleton) skeleton.style.display = "none"; imgEl.style.opacity = "1"; };
     }
+    updateViewerDots();
   };
-
   const bindProductPreview = () => {
     const overlay = document.getElementById("product-preview");
     if (!overlay) return;
-
+    const img = document.getElementById("prev-img");
+    const stage = document.getElementById("prev-img-wrap");
+    const zoomIn = document.getElementById("viewer-zoom-in");
+    const zoomOut = document.getElementById("viewer-zoom-out");
+    const reset = document.getElementById("viewer-reset");
+    const setZoom = (next, cx = 0, cy = 0) => {
+      const prevScale = state.viewerScale;
+      const scale = clamp(next, 1, 4);
+      state.viewerScale = scale;
+      if (scale === 1) {
+        state.viewerPanX = 0;
+        state.viewerPanY = 0;
+      } else if (cx || cy) {
+        const factor = scale / Math.max(1, prevScale);
+        state.viewerPanX = cx - (cx - state.viewerPanX) * factor;
+        state.viewerPanY = cy - (cy - state.viewerPanY) * factor;
+      }
+      applyViewerTransform();
+    };
+    const clampPan = () => {
+      if (!img) return;
+      const rect = img.getBoundingClientRect();
+      const maxX = Math.max(0, (rect.width * state.viewerScale - rect.width) / 2);
+      const maxY = Math.max(0, (rect.height * state.viewerScale - rect.height) / 2);
+      state.viewerPanX = clamp(state.viewerPanX, -maxX, maxX);
+      state.viewerPanY = clamp(state.viewerPanY, -maxY, maxY);
+    };
+    const stepImage = (dir) => {
+      if (!state.products.length) return;
+      state.previewIdx = (state.previewIdx + dir + state.products.length) % state.products.length;
+      updatePreviewSlide();
+    };
     document.getElementById("prev-close-btn")?.addEventListener("click", closeProductPreview);
-    document.getElementById("prev-btn-prev")?.addEventListener("click", () => {
-      if (state.previewIdx > 0) { state.previewIdx--; updatePreviewSlide(); }
-    });
-    document.getElementById("prev-btn-next")?.addEventListener("click", () => {
-      if (state.previewIdx < state.products.length - 1) { state.previewIdx++; updatePreviewSlide(); }
-    });
+    document.getElementById("prev-btn-prev")?.addEventListener("click", () => stepImage(-1));
+    document.getElementById("prev-btn-next")?.addEventListener("click", () => stepImage(1));
+    zoomIn?.addEventListener("click", () => setZoom(state.viewerScale + 0.5));
+    zoomOut?.addEventListener("click", () => setZoom(state.viewerScale - 0.5));
+    reset?.addEventListener("click", () => { state.viewerScale = 1; state.viewerPanX = 0; state.viewerPanY = 0; applyViewerTransform(); });
 
-    // Orientation toggle
-    document.getElementById("prev-orient-btn")?.addEventListener("click", async () => {
-      try {
-        if (screen.orientation?.type?.startsWith("landscape")) {
-          await screen.orientation?.lock?.("portrait");
-        } else {
-          await screen.orientation?.lock?.("landscape");
-        }
-      } catch {}
+    let pointerId = null;
+    let startX = 0, startY = 0, lastX = 0, lastY = 0, swipeStart = 0;
+    let pinchStartDist = 0, pinchStartScale = 1;
+    overlay.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button")) return;
+      pointerId = e.pointerId;
+      startX = lastX = e.clientX;
+      startY = lastY = e.clientY;
+      swipeStart = Date.now();
+      overlay.setPointerCapture?.(e.pointerId);
     });
-
-    // Swipe left/right
-    let touchStartX = 0, touchStartY = 0;
+    overlay.addEventListener("pointermove", (e) => {
+      if (pointerId !== e.pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (state.viewerScale > 1) {
+        state.viewerPanX += e.clientX - lastX;
+        state.viewerPanY += e.clientY - lastY;
+        clampPan();
+        applyViewerTransform();
+      } else if (img) {
+        img.style.transition = "none";
+        img.style.setProperty("--pan-x", `${dx}px`);
+        img.style.opacity = String(clamp(1 - Math.abs(dx) / ((stage?.clientWidth || window.innerWidth) * 1.8), 0.45, 1));
+      }
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) e.preventDefault();
+    }, { passive: false });
+    overlay.addEventListener("pointerup", (e) => {
+      if (pointerId !== e.pointerId) return;
+      pointerId = null;
+      const dx = e.clientX - startX;
+      if (state.viewerScale > 1) {
+        clampPan();
+        applyViewerTransform();
+      } else if (Math.abs(dx) > (stage?.clientWidth || window.innerWidth) * 0.18) {
+        stepImage(dx < 0 ? 1 : -1);
+      } else if (img) {
+        img.style.transition = "";
+        img.style.opacity = "1";
+        img.style.setProperty("--pan-x", "0px");
+      }
+    });
+    overlay.addEventListener("pointercancel", () => { pointerId = null; });
     overlay.addEventListener("touchstart", (e) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
+      if (e.touches.length === 2) {
+        pinchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        pinchStartScale = state.viewerScale;
+      }
     }, { passive: true });
-    overlay.addEventListener("touchend", (e) => {
-      const dx = e.changedTouches[0].clientX - touchStartX;
-      const dy = e.changedTouches[0].clientY - touchStartY;
-      if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return;
-      if (dx < 0 && state.previewIdx < state.products.length - 1) { state.previewIdx++; updatePreviewSlide(); }
-      if (dx > 0 && state.previewIdx > 0) { state.previewIdx--; updatePreviewSlide(); }
+    overlay.addEventListener("touchmove", (e) => {
+      if (e.touches.length !== 2 || !pinchStartDist) return;
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const next = pinchStartScale * (dist / pinchStartDist);
+      state.viewerScale = clamp(next, 1, 4);
+      applyViewerTransform();
     }, { passive: true });
-
-    // Keyboard left/right
+    overlay.addEventListener("wheel", (e) => {
+      if (!e.ctrlKey && state.viewerScale === 1) return;
+      e.preventDefault();
+      state.viewerScale = clamp(state.viewerScale + (e.deltaY > 0 ? -0.15 : 0.15), 1, 4);
+      applyViewerTransform();
+    }, { passive: false });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeProductPreview();
+    });
     document.addEventListener("keydown", (e) => {
       if (overlay.classList.contains("hidden")) return;
-      if (e.key === "ArrowLeft"  && state.previewIdx > 0) { state.previewIdx--; updatePreviewSlide(); }
-      if (e.key === "ArrowRight" && state.previewIdx < state.products.length - 1) { state.previewIdx++; updatePreviewSlide(); }
       if (e.key === "Escape") closeProductPreview();
+      if (e.key === "ArrowLeft") stepImage(-1);
+      if (e.key === "ArrowRight") stepImage(1);
     });
   };
 
@@ -794,30 +919,81 @@
   const closeSheet = (id) => document.getElementById(id)?.classList.add("hidden");
 
   // ── Notifications ──────────────────────────────────────
+  let _socket = null;
+
+  const notifPriority = (p) => (p === "urgent" || p === "warning") ? p : "info";
+
+  const renderNotifCard = (n) => {
+    const p    = notifPriority(n.priority);
+    const unread = !n.readAt && !n.read ? " unread" : "";
+    const label = p === "urgent" ? "Urgent" : p === "warning" ? "Warning" : "Info";
+    const timeStr2 = n.createdAt ? new Date(n.createdAt).toLocaleDateString("en-IN", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" }) : "";
+    return `
+      <div class="notif-card ${p}${unread}">
+        <div class="notif-card-title">${n.title || "Notification"}</div>
+        ${n.message ? `<div class="notif-card-body">${n.message}</div>` : ""}
+        <div class="notif-card-meta">
+          <span class="notif-pill ${p}">${label}</span>
+          ${timeStr2 ? `<span>${timeStr2}</span>` : ""}
+        </div>
+      </div>`;
+  };
+
   const fetchNotifications = async () => {
     const listEl = document.getElementById("notif-list");
     const badge  = document.getElementById("notif-badge");
     openSheet("sheet-notifs");
     if (listEl) listEl.innerHTML = `<p class="empty-state">Loading...</p>`;
     try {
-      const data  = await api("/employee/notifications");
+      const data   = await api("/employee/notifications");
       const notifs = data.notifications || [];
-      if (badge) {
-        badge.classList.toggle("visible", notifs.some(n => !n.read));
-      }
+      if (badge) badge.classList.toggle("visible", notifs.some(n => !n.readAt && !n.read));
       if (!listEl) return;
       if (!notifs.length) { listEl.innerHTML = `<p class="empty-state">No notifications yet.</p>`; return; }
-      listEl.innerHTML = notifs.map(n => `
-        <div class="list-item mt-2" style="${n.read ? "" : "border-color:rgba(214,40,57,0.3);"}">
-          <div class="list-body">
-            <p class="list-name" style="font-size:.88rem;">${n.title || n.message || "Notification"}</p>
-            ${n.body || n.message ? `<p class="list-meta mt-1">${n.body || ""}</p>` : ""}
-            ${n.createdAt ? `<p class="list-meta mt-1">${dmy(n.createdAt)}</p>` : ""}
-          </div>
-        </div>`).join("");
-    } catch (err) {
+      listEl.innerHTML = notifs.map(renderNotifCard).join("");
+    } catch {
       if (listEl) listEl.innerHTML = `<p class="empty-state">Failed to load notifications.</p>`;
     }
+  };
+
+  const connectSocket = () => {
+    if (typeof io === "undefined" || !state.token) return;
+    if (_socket) { _socket.disconnect(); _socket = null; }
+    _socket = io(API_BASE.replace("/api", ""), {
+      auth: { token: state.token },
+      transports: ["websocket"],
+      reconnectionAttempts: 5,
+    });
+
+    _socket.on("notification:new", async (payload) => {
+      // Update badge
+      const badge = document.getElementById("notif-badge");
+      if (badge) badge.classList.add("visible");
+
+      // Fire local notification if panel is not open
+      const sheet = document.getElementById("sheet-notifs");
+      const panelOpen = sheet && !sheet.classList.contains("hidden");
+      if (state.notifGranted && !panelOpen) {
+        try {
+          await cap("LocalNotifications")?.schedule({
+            notifications: [{
+              id: Math.floor(Math.random() * 999999) + 1,
+              title: payload.title || "Soul Pharma",
+              body:  payload.message || "",
+              smallIcon: "ic_stat_soul",
+            }],
+          });
+        } catch {}
+      }
+
+      // Prepend card to open panel
+      const listEl = document.getElementById("notif-list");
+      if (listEl && panelOpen) {
+        const empty = listEl.querySelector(".empty-state");
+        if (empty) listEl.innerHTML = "";
+        listEl.insertAdjacentHTML("afterbegin", renderNotifCard({ ...payload, read: false }));
+      }
+    });
   };
 
   // ── Profile photo ──────────────────────────────────────
@@ -935,6 +1111,7 @@
     tracker.start();
     sendLocationPing("login");
     startLocationWatch();
+    connectSocket();
     setTimeout(() => loader.hide(), 600);
   };
 
@@ -1175,7 +1352,7 @@
       ["sheet-expense",   "sheet-expense-close",   "sheet-expense-bd"],
       ["sheet-doctor",    "sheet-doctor-close",    "sheet-doctor-bd"],
       ["sheet-activity",  "sheet-activity-close",  "sheet-activity-bd"],
-      ["sheet-notifs",    null,                    "sheet-notifs-bd"],
+      ["sheet-notifs",    "sheet-notifs-close",    "sheet-notifs-bd"],
       ["sheet-exp-detail",null,                    "sheet-exp-detail-bd"],
       ["sheet-profile",   null,                    "sheet-profile-bd"],
     ].forEach(([sheet, closeBtn, backdrop]) => {
