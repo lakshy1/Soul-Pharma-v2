@@ -1,0 +1,60 @@
+[
+  {
+    "key": "General",
+    "label": "General",
+    "items": [
+      {
+        "name": "0",
+        "imageUrl": "Products/General/0.jpeg"
+      },
+      {
+        "name": "Astan",
+        "imageUrl": "Products/General/Astan.jpeg"
+      },
+      {
+        "name": "Mintox",
+        "imageUrl": "Products/General/Mintox.jpeg"
+      },
+      {
+        "name": "Myosol SP",
+        "imageUrl": "Products/General/Myosol-SP.jpeg"
+      },
+      {
+        "name": "Nervsol",
+        "imageUrl": "Products/General/Nervsol.jpeg"
+      },
+      {
+        "name": "Rabisol DSR",
+        "imageUrl": "Products/General/Rabisol-DSR.jpeg"
+      },
+      {
+        "name": "Saipro",
+        "imageUrl": "Products/General/Saipro.jpeg"
+      },
+      {
+        "name": "SoulK2",
+        "imageUrl": "Products/General/SoulK2.jpeg"
+      }
+    ]
+  },
+  {
+    "key": "Neuro-Care",
+    "label": "Neuro-Care",
+    "items": [
+      {
+        "name": "0",
+        "imageUrl": "Products/Neuro-Care/0.jpeg"
+      }
+    ]
+  },
+  {
+    "key": "Psycho-Care",
+    "label": "Psycho-Care",
+    "items": [
+      {
+        "name": "0",
+        "imageUrl": "Products/Psycho-Care/0.jpeg"
+      }
+    ]
+  }
+]

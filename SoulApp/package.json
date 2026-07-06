@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "generate-products": "node scripts/generate-products.js",
     "sync": "npx cap sync",
     "android": "npx cap run android",
     "open": "npx cap open android"
